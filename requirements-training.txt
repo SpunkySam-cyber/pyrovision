@@ -1,0 +1,4 @@
+ultralytics==8.4.37
+psutil==7.0.0
+PyYAML==6.0.2
+Pillow==12.2.0

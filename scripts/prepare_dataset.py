@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from PIL import Image, ImageFile, ImageOps
+
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 SPLITS = ("train", "val", "test")
@@ -234,10 +236,33 @@ def safe_clear_output(output: Path, source: Path) -> None:
     shutil.rmtree(output)
 
 
+def copy_image(source: Path, destination: Path) -> bool:
+    """Copy an image, repairing JPEGs that lack an end-of-image marker."""
+    if source.suffix.casefold() in {".jpg", ".jpeg"}:
+        with source.open("rb") as handle:
+            handle.seek(-2, 2)
+            missing_eoi = handle.read() != b"\xff\xd9"
+        if missing_eoi:
+            previous_setting = ImageFile.LOAD_TRUNCATED_IMAGES
+            ImageFile.LOAD_TRUNCATED_IMAGES = True
+            try:
+                with Image.open(source) as opened:
+                    repaired = ImageOps.exif_transpose(opened)
+                    if repaired.mode not in {"RGB", "L"}:
+                        repaired = repaired.convert("RGB")
+                    repaired.save(destination, "JPEG", subsampling=0, quality=100)
+            finally:
+                ImageFile.LOAD_TRUNCATED_IMAGES = previous_setting
+            return True
+    shutil.copy2(source, destination)
+    return False
+
+
 def write_split(
     split_records: dict[str, list[Record]], output: Path, source: Path
-) -> None:
+) -> int:
     manifest_rows: list[dict[str, str]] = []
+    repaired_jpegs = 0
     for split in SPLITS:
         image_dir = output / "images" / split
         label_dir = output / "labels" / split
@@ -247,7 +272,7 @@ def write_split(
         for record in split_records[split]:
             image_name = f"{record.output_stem}{record.image.suffix.lower()}"
             label_name = f"{record.output_stem}.txt"
-            shutil.copy2(record.image, image_dir / image_name)
+            repaired_jpegs += copy_image(record.image, image_dir / image_name)
             (label_dir / label_name).write_text(record.label_text, encoding="utf-8")
             manifest_rows.append(
                 {
@@ -265,6 +290,7 @@ def write_split(
         )
         writer.writeheader()
         writer.writerows(manifest_rows)
+    return repaired_jpegs
 
 
 def prepare(
@@ -295,7 +321,7 @@ def prepare(
             raise ValueError(f"Output already exists: {output}; use --overwrite to replace it")
         safe_clear_output(output, source)
     output.mkdir(parents=True)
-    write_split(split_records, output, source)
+    repaired_jpegs = write_split(split_records, output, source)
 
     summary: dict[str, object] = {
         "source": str(source),
@@ -310,6 +336,7 @@ def prepare(
             "clipped_boxes": sum(record.clipped_boxes for record in records),
             "dropped_boxes": sum(record.dropped_boxes for record in records),
         },
+        "image_cleanup": {"repaired_jpegs_missing_eoi": repaired_jpegs},
         "splits": {
             split: {
                 "images": len(items),

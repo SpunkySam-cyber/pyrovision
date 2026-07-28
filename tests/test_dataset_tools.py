@@ -33,11 +33,24 @@ class DatasetToolsTest(unittest.TestCase):
             )
             for index in range(40):
                 stem = f"sample_{index:03d}"
-                Image.new(
-                    "RGB",
+                sample = Image.new(
+                    "RGBA" if index == 0 else "RGB",
                     (32, 32),
-                    color=((index * 5) % 256, (index * 11) % 256, (index * 17) % 256),
-                ).save(image_dir / f"{stem}.png")
+                    color=(
+                        (index * 5) % 256,
+                        (index * 11) % 256,
+                        (index * 17) % 256,
+                        255,
+                    )
+                    if index == 0
+                    else ((index * 5) % 256, (index * 11) % 256, (index * 17) % 256),
+                )
+                if index == 0:
+                    image_path = image_dir / f"{stem}.jpg"
+                    sample.save(image_path, "PNG")
+                    image_path.write_bytes(image_path.read_bytes()[:-2])
+                else:
+                    sample.save(image_dir / f"{stem}.png")
                 (label_dir / f"{stem}.txt").write_text(
                     categories[index % len(categories)], encoding="utf-8"
                 )
@@ -53,6 +66,9 @@ class DatasetToolsTest(unittest.TestCase):
             self.assertEqual(summary["total_images"], 40)
             self.assertEqual(summary["annotation_cleanup"]["clipped_boxes"], 10)
             self.assertEqual(summary["annotation_cleanup"]["dropped_boxes"], 10)
+            self.assertEqual(summary["image_cleanup"]["repaired_jpegs_missing_eoi"], 1)
+            repaired_sample = next((output / "images").rglob("sample_000.jpg"))
+            self.assertEqual(repaired_sample.read_bytes()[-2:], b"\xff\xd9")
 
             stats, errors = verify(
                 dataset=output,

@@ -1,8 +1,8 @@
 # PyroVision AI
 
-Real-time fire and smoke detection with YOLOv8. The project is being built and
-verified one stage at a time. Dataset preparation is complete; model training
-has not started.
+Real-time fire and smoke detection with YOLO11. The project is being built and
+verified one stage at a time. Dataset preparation is complete; the Step 2
+training pipeline and GPU smoke test are verified, and full training is next.
 
 ## Step 1 — dataset preparation
 
@@ -67,4 +67,48 @@ clips 379 recoverable boxes, drops 18 degenerate boxes, and retains 26,539
 valid boxes. The processed dataset contains 11,854 smoke boxes and 14,685 fire
 boxes.
 
+Preparation also repairs 91 source JPEGs that lack an end-of-image marker in
+the processed copy only. The raw archive is unchanged, and strict verification
+loads every processed image successfully before training.
+
 Source: [D-Fire dataset](https://github.com/gaia-solutions-on-demand/DFireDataset)
+
+## Step 2 — YOLO11s training
+
+The baseline uses a COCO-pretrained `yolo11s.pt` checkpoint, 640 px inputs,
+seed 42, standard HSV/translation/scale/horizontal-flip/mosaic augmentation,
+and the verified training and validation splits. The held-out test split is not
+used during Step 2.
+
+Create the local GPU environment on this RTX 4050 / CUDA 12.9 machine:
+
+```powershell
+py -3.11 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements-cuda129.txt
+.venv\Scripts\python.exe -m pip install -r requirements-training.txt
+.venv\Scripts\python.exe scripts\check_environment.py --require-cuda
+```
+
+The verified stage commands are deliberately separate:
+
+```powershell
+# Record validation metrics before fine-tuning
+.venv\Scripts\python.exe scripts\train.py baseline
+
+# Verify the training loop on a deterministic, category-stratified subset
+.venv\Scripts\python.exe scripts\train.py smoke-test
+
+# Run the full fine-tuning job only after both gates pass
+.venv\Scripts\python.exe scripts\train.py train
+```
+
+Per-epoch box/class/DFL losses, precision, recall, mAP50, and mAP50–95 are
+written to the Ultralytics `results.csv` and mirrored into
+`metrics/yolo11s_baseline.json` after each epoch. The metrics record also keeps
+the pre-training baseline, environment details, best/last checkpoint hashes,
+peak GPU allocation, explicit best-checkpoint validation, and any failure.
+Weights, local datasets, and generated run artifacts are intentionally ignored
+by Git.
+
+The pre-training validation and accepted two-epoch GPU smoke-test results are
+documented in `docs/training/yolo11s_baseline.md`. Full training is pending.

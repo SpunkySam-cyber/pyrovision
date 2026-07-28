@@ -149,6 +149,11 @@ def verify(
             try:
                 with Image.open(image) as opened:
                     opened.verify()
+                if image.suffix.casefold() in {".jpg", ".jpeg"}:
+                    with image.open("rb") as handle:
+                        handle.seek(-2, 2)
+                        if handle.read() != b"\xff\xd9":
+                            raise OSError("JPEG is missing the end-of-image marker")
             except (OSError, UnidentifiedImageError) as exc:
                 corrupt_images += 1
                 errors.append(f"Unreadable image {image}: {exc}")

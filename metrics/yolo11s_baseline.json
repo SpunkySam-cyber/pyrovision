@@ -1,0 +1,701 @@
+{
+  "schema_version": 1,
+  "experiment_id": "yolo11s_baseline",
+  "status": "smoke_test_complete",
+  "model": {
+    "architecture": "YOLO11s",
+    "initial_checkpoint": "yolo11s.pt",
+    "pretrained": true
+  },
+  "dataset": {
+    "config": "configs/dfire.yaml",
+    "seed": 42,
+    "train_images": 15068,
+    "validation_images": 4306,
+    "test_images": 2153,
+    "classes": [
+      "smoke",
+      "fire"
+    ],
+    "image_cleanup": {
+      "repaired_jpegs_missing_eoi": 91
+    },
+    "strict_verification": {
+      "valid": true,
+      "error_count": 0,
+      "verified_at": "2026-07-28"
+    }
+  },
+  "environment_audit": {
+    "date": "2026-07-28",
+    "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "vram_mib": 6141,
+    "driver": "577.05",
+    "driver_cuda": "12.9",
+    "compute_capability": "8.9",
+    "ram_total_gib": 15.73,
+    "ram_available_gib": 1.97,
+    "disk_free_gib": 84.81,
+    "python": "3.11.4",
+    "global_torch": "2.8.0+cpu",
+    "global_torchvision": "0.23.0+cpu",
+    "global_ultralytics": "8.4.37",
+    "cuda_available_in_global_python": false,
+    "venv_python": "3.11.4",
+    "venv_torch": "2.8.0+cu129",
+    "venv_torchvision": "0.23.0+cu129",
+    "venv_ultralytics": "8.4.37",
+    "venv_cuda_runtime": "12.9",
+    "venv_cudnn": 91002,
+    "venv_cuda_available": true,
+    "cuda_tensor_test": "passed",
+    "dependency_check": "passed",
+    "dataset_loader_check": "passed"
+  },
+  "pretrained_validation": {
+    "precision": 0.003907046299317981,
+    "recall": 0.0065345699831365935,
+    "map50": 0.0001800462925293268,
+    "map50_95": 6.447109778897567e-05,
+    "per_class": {
+      "smoke": {
+        "precision": 0.007814092598635962,
+        "recall": 0.013069139966273187,
+        "map50": 0.00033881598931397277,
+        "map50_95": 0.0001215257245011044
+      },
+      "fire": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "map50": 2.1276595744680852e-05,
+        "map50_95": 7.416471076846942e-06
+      }
+    },
+    "speed_ms_per_image": {
+      "preprocess": 0.7812402223998615,
+      "inference": 4.463606781094377,
+      "loss": 0.0008939371430875255,
+      "postprocess": 0.8533722012707357
+    },
+    "save_dir": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_pretrain_validation",
+    "checkpoint": "yolo11s.pt",
+    "class_name_alignment": {
+      "target_names": {
+        "0": "smoke",
+        "1": "fire"
+      },
+      "checkpoint_names_for_target_ids": {
+        "0": "person",
+        "1": "bicycle"
+      }
+    },
+    "checkpoint_sha256": "85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5",
+    "started_at_utc": "2026-07-28T13:17:18.375977+00:00",
+    "completed_at_utc": "2026-07-28T13:18:10.545567+00:00",
+    "environment": {
+      "captured_at_utc": "2026-07-28T13:18:10.546569+00:00",
+      "project_root": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision",
+      "git_commit": "21434afbe2e7c8af399c051ade3281e4acae7b31",
+      "git_status": "?? configs/yolo11s_baseline.yaml\n?? docs/\n?? metrics/\n?? requirements-cuda129.txt\n?? requirements-training.txt\n?? scripts/check_environment.py\n?? scripts/train.py\n?? tests/test_training_tools.py",
+      "platform": "Windows-10-10.0.26200-SP0",
+      "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+      "executable": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\.venv\\Scripts\\python.exe",
+      "packages": {
+        "torch": "2.8.0+cu129",
+        "torchvision": "0.23.0+cu129",
+        "ultralytics": "8.4.37",
+        "numpy": "2.4.4",
+        "opencv-python": "5.0.0.93",
+        "Pillow": "12.2.0"
+      },
+      "torch": {
+        "installed": true,
+        "version": "2.8.0+cu129",
+        "cuda_available": true,
+        "cuda_runtime": "12.9",
+        "cudnn": 91002,
+        "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+        "device_count": 1,
+        "vram_bytes": 6438780928,
+        "compute_capability": [
+          8,
+          9
+        ]
+      },
+      "nvidia_smi": {
+        "name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+        "driver": "577.05",
+        "memory_total_mib": "6141",
+        "memory_free_mib": "4351",
+        "compute_capability": "8.9"
+      },
+      "system": {
+        "ram_total_bytes": 16890322944,
+        "ram_available_bytes": 2187796480,
+        "disk_total_bytes": 509722226688,
+        "disk_free_bytes": 69319770112
+      },
+      "dataset": {
+        "total_images": 21527,
+        "ratios": {
+          "train": 0.7,
+          "val": 0.2,
+          "test": 0.1
+        },
+        "splits": {
+          "train": {
+            "images": 15068,
+            "categories": {
+              "fire": 815,
+              "negative": 6886,
+              "smoke": 4107,
+              "smoke+fire": 3260
+            }
+          },
+          "val": {
+            "images": 4306,
+            "categories": {
+              "fire": 233,
+              "negative": 1968,
+              "smoke": 1173,
+              "smoke+fire": 932
+            }
+          },
+          "test": {
+            "images": 2153,
+            "categories": {
+              "fire": 116,
+              "negative": 984,
+              "smoke": 587,
+              "smoke+fire": 466
+            }
+          }
+        },
+        "annotation_cleanup": {
+          "kept_boxes": 26539,
+          "clipped_boxes": 379,
+          "dropped_boxes": 18
+        }
+      }
+    }
+  },
+  "smoke_test": {
+    "started_at_utc": "2026-07-28T13:25:21.624984+00:00",
+    "completed_at_utc": "2026-07-28T13:28:16.600365+00:00",
+    "run_dir": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test_stratified",
+    "arguments": {
+      "imgsz": 640,
+      "epochs": 2,
+      "batch": 4,
+      "device": 0,
+      "workers": 2,
+      "patience": 2,
+      "seed": 42,
+      "deterministic": true,
+      "pretrained": true,
+      "amp": true,
+      "cache": false,
+      "plots": true,
+      "save": true,
+      "save_period": -1,
+      "hsv_h": 0.015,
+      "hsv_s": 0.7,
+      "hsv_v": 0.4,
+      "degrees": 0.0,
+      "translate": 0.1,
+      "scale": 0.5,
+      "shear": 0.0,
+      "perspective": 0.0,
+      "flipud": 0.0,
+      "fliplr": 0.5,
+      "mosaic": 1.0,
+      "mixup": 0.0,
+      "close_mosaic": 10,
+      "data": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\data\\processed\\dfire\\smoke_test.yaml",
+      "project": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision",
+      "name": "yolo11s_baseline_smoke_test_stratified",
+      "exist_ok": false
+    },
+    "epoch_metrics": {
+      "epochs_completed": 2,
+      "best_epoch": 2,
+      "best_epoch_metrics": {
+        "epoch": 2,
+        "train/box_loss": 2.12698,
+        "train/cls_loss": 3.08651,
+        "train/dfl_loss": 1.94019,
+        "metrics/precision(B)": 0.21524,
+        "metrics/recall(B)": 0.20948,
+        "metrics/mAP50(B)": 0.12697,
+        "metrics/mAP50-95(B)": 0.04042,
+        "val/box_loss": 1.74704,
+        "val/cls_loss": 4.38082,
+        "val/dfl_loss": 1.66858,
+        "lr/pg0": 0.000558417,
+        "lr/pg1": 0.000558417,
+        "lr/pg2": 0.000558417,
+        "time_seconds": 127.075
+      },
+      "last_epoch_metrics": {
+        "epoch": 2,
+        "train/box_loss": 2.12698,
+        "train/cls_loss": 3.08651,
+        "train/dfl_loss": 1.94019,
+        "metrics/precision(B)": 0.21524,
+        "metrics/recall(B)": 0.20948,
+        "metrics/mAP50(B)": 0.12697,
+        "metrics/mAP50-95(B)": 0.04042,
+        "val/box_loss": 1.74704,
+        "val/cls_loss": 4.38082,
+        "val/dfl_loss": 1.66858,
+        "lr/pg0": 0.000558417,
+        "lr/pg1": 0.000558417,
+        "lr/pg2": 0.000558417,
+        "time_seconds": 127.075
+      },
+      "per_epoch": [
+        {
+          "epoch": 1,
+          "train/box_loss": 2.02223,
+          "train/cls_loss": 4.5241,
+          "train/dfl_loss": 1.83344,
+          "metrics/precision(B)": 0.13356,
+          "metrics/recall(B)": 0.16086,
+          "metrics/mAP50(B)": 0.05946,
+          "metrics/mAP50-95(B)": 0.01968,
+          "val/box_loss": 2.01277,
+          "val/cls_loss": 7.78408,
+          "val/dfl_loss": 1.72069,
+          "lr/pg0": 0.00055011,
+          "lr/pg1": 0.00055011,
+          "lr/pg2": 0.00055011,
+          "time_seconds": 84.4993
+        },
+        {
+          "epoch": 2,
+          "train/box_loss": 2.12698,
+          "train/cls_loss": 3.08651,
+          "train/dfl_loss": 1.94019,
+          "metrics/precision(B)": 0.21524,
+          "metrics/recall(B)": 0.20948,
+          "metrics/mAP50(B)": 0.12697,
+          "metrics/mAP50-95(B)": 0.04042,
+          "val/box_loss": 1.74704,
+          "val/cls_loss": 4.38082,
+          "val/dfl_loss": 1.66858,
+          "lr/pg0": 0.000558417,
+          "lr/pg1": 0.000558417,
+          "lr/pg2": 0.000558417,
+          "time_seconds": 127.075
+        }
+      ],
+      "results_csv": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test_stratified\\results.csv"
+    },
+    "best_checkpoint": {
+      "path": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test_stratified\\weights\\best.pt",
+      "size_bytes": 19142874,
+      "sha256": "ffc7e6cb91db0097939ae77467a6d6b8e9b8f90eb323b7c0e7e0b09f81d4cced"
+    },
+    "last_checkpoint": {
+      "path": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test_stratified\\weights\\last.pt",
+      "size_bytes": 19142874,
+      "sha256": "039057d0df5e4dd90841a2a87bb6d128822c86c80b6ba1e5475cc1d387f88159"
+    },
+    "peak_cuda_memory_bytes": 1300093952,
+    "environment": {
+      "captured_at_utc": "2026-07-28T13:28:16.656709+00:00",
+      "project_root": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision",
+      "git_commit": "21434afbe2e7c8af399c051ade3281e4acae7b31",
+      "git_status": "?? configs/yolo11s_baseline.yaml\n?? docs/\n?? metrics/\n?? requirements-cuda129.txt\n?? requirements-training.txt\n?? scripts/check_environment.py\n?? scripts/train.py\n?? tests/test_training_tools.py",
+      "platform": "Windows-10-10.0.26200-SP0",
+      "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+      "executable": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\.venv\\Scripts\\python.exe",
+      "packages": {
+        "torch": "2.8.0+cu129",
+        "torchvision": "0.23.0+cu129",
+        "ultralytics": "8.4.37",
+        "numpy": "2.4.4",
+        "opencv-python": "5.0.0.93",
+        "Pillow": "12.2.0"
+      },
+      "torch": {
+        "installed": true,
+        "version": "2.8.0+cu129",
+        "cuda_available": true,
+        "cuda_runtime": "12.9",
+        "cudnn": 91002,
+        "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+        "device_count": 1,
+        "vram_bytes": 6438780928,
+        "compute_capability": [
+          8,
+          9
+        ]
+      },
+      "nvidia_smi": {
+        "name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+        "driver": "577.05",
+        "memory_total_mib": "6141",
+        "memory_free_mib": "5166",
+        "compute_capability": "8.9"
+      },
+      "system": {
+        "ram_total_bytes": 16890322944,
+        "ram_available_bytes": 1937190912,
+        "disk_total_bytes": 509722226688,
+        "disk_free_bytes": 63554535424
+      },
+      "dataset": {
+        "total_images": 21527,
+        "ratios": {
+          "train": 0.7,
+          "val": 0.2,
+          "test": 0.1
+        },
+        "splits": {
+          "train": {
+            "images": 15068,
+            "categories": {
+              "fire": 815,
+              "negative": 6886,
+              "smoke": 4107,
+              "smoke+fire": 3260
+            }
+          },
+          "val": {
+            "images": 4306,
+            "categories": {
+              "fire": 233,
+              "negative": 1968,
+              "smoke": 1173,
+              "smoke+fire": 932
+            }
+          },
+          "test": {
+            "images": 2153,
+            "categories": {
+              "fire": 116,
+              "negative": 984,
+              "smoke": 587,
+              "smoke+fire": 466
+            }
+          }
+        },
+        "annotation_cleanup": {
+          "kept_boxes": 26539,
+          "clipped_boxes": 379,
+          "dropped_boxes": 18
+        }
+      }
+    },
+    "subset": {
+      "size": 400,
+      "seed": 42,
+      "categories": {
+        "fire": 22,
+        "negative": 183,
+        "smoke": 109,
+        "smoke+fire": 86
+      },
+      "image_list": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\data\\processed\\dfire\\smoke_test_train.txt",
+      "data_config": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\data\\processed\\dfire\\smoke_test.yaml"
+    },
+    "accepted": true,
+    "best_validation": {
+      "precision": 0.21715205007710062,
+      "recall": 0.20689914098447096,
+      "map50": 0.12741170953804118,
+      "map50_95": 0.04056158091003971,
+      "per_class": {
+        "smoke": {
+          "precision": 0.1892468231028293,
+          "recall": 0.17495784148397978,
+          "map50": 0.09857715244064834,
+          "map50_95": 0.030275884175707462
+        },
+        "fire": {
+          "precision": 0.24505727705137192,
+          "recall": 0.23884044048496214,
+          "map50": 0.15624626663543403,
+          "map50_95": 0.05084727764437195
+        }
+      },
+      "speed_ms_per_image": {
+        "preprocess": 0.6575351137593493,
+        "inference": 4.492993984882721,
+        "loss": 0.0009356478390946147,
+        "postprocess": 0.9882011380210117
+      },
+      "save_dir": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test_stratified_best_validation",
+      "checkpoint": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test_stratified\\weights\\best.pt",
+      "class_name_alignment": {
+        "target_names": {
+          "0": "smoke",
+          "1": "fire"
+        },
+        "checkpoint_names_for_target_ids": {
+          "0": "smoke",
+          "1": "fire"
+        }
+      },
+      "checkpoint_sha256": "ffc7e6cb91db0097939ae77467a6d6b8e9b8f90eb323b7c0e7e0b09f81d4cced"
+    }
+  },
+  "training": null,
+  "posttrained_validation": null,
+  "test_evaluation": null,
+  "smoke_test_attempts": [
+    {
+      "started_at_utc": "2026-07-28T13:19:37.815265+00:00",
+      "completed_at_utc": "2026-07-28T13:22:21.332942+00:00",
+      "run_dir": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test",
+      "arguments": {
+        "imgsz": 640,
+        "epochs": 2,
+        "batch": 4,
+        "device": 0,
+        "workers": 2,
+        "patience": 2,
+        "seed": 42,
+        "deterministic": true,
+        "pretrained": true,
+        "amp": true,
+        "cache": false,
+        "plots": true,
+        "save": true,
+        "save_period": -1,
+        "hsv_h": 0.015,
+        "hsv_s": 0.7,
+        "hsv_v": 0.4,
+        "degrees": 0.0,
+        "translate": 0.1,
+        "scale": 0.5,
+        "shear": 0.0,
+        "perspective": 0.0,
+        "flipud": 0.0,
+        "fliplr": 0.5,
+        "mosaic": 1.0,
+        "mixup": 0.0,
+        "close_mosaic": 10,
+        "fraction": 0.02,
+        "data": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\configs\\dfire.yaml",
+        "project": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision",
+        "name": "yolo11s_baseline_smoke_test",
+        "exist_ok": false
+      },
+      "epoch_metrics": {
+        "epochs_completed": 2,
+        "best_epoch": 2,
+        "best_epoch_metrics": {
+          "epoch": 2,
+          "train/box_loss": 0.09434,
+          "train/cls_loss": 4.76139,
+          "train/dfl_loss": 0.09129,
+          "metrics/precision(B)": 0.00106,
+          "metrics/recall(B)": 0.13837,
+          "metrics/mAP50(B)": 0.00029,
+          "metrics/mAP50-95(B)": 6e-05,
+          "val/box_loss": 2.8654,
+          "val/cls_loss": 3.18644,
+          "val/dfl_loss": 2.46905,
+          "lr/pg0": 0.000557531,
+          "lr/pg1": 0.000557531,
+          "lr/pg2": 0.000557531,
+          "time_seconds": 120.436
+        },
+        "last_epoch_metrics": {
+          "epoch": 2,
+          "train/box_loss": 0.09434,
+          "train/cls_loss": 4.76139,
+          "train/dfl_loss": 0.09129,
+          "metrics/precision(B)": 0.00106,
+          "metrics/recall(B)": 0.13837,
+          "metrics/mAP50(B)": 0.00029,
+          "metrics/mAP50-95(B)": 6e-05,
+          "val/box_loss": 2.8654,
+          "val/cls_loss": 3.18644,
+          "val/dfl_loss": 2.46905,
+          "lr/pg0": 0.000557531,
+          "lr/pg1": 0.000557531,
+          "lr/pg2": 0.000557531,
+          "time_seconds": 120.436
+        },
+        "per_epoch": [
+          {
+            "epoch": 1,
+            "train/box_loss": 0.0,
+            "train/cls_loss": 41.7365,
+            "train/dfl_loss": 0.0,
+            "metrics/precision(B)": 0.00051,
+            "metrics/recall(B)": 0.00927,
+            "metrics/mAP50(B)": 0.0001,
+            "metrics/mAP50-95(B)": 2e-05,
+            "val/box_loss": 2.72505,
+            "val/cls_loss": 13.5489,
+            "val/dfl_loss": 2.48016,
+            "lr/pg0": 0.000548355,
+            "lr/pg1": 0.000548355,
+            "lr/pg2": 0.000548355,
+            "time_seconds": 81.1117
+          },
+          {
+            "epoch": 2,
+            "train/box_loss": 0.09434,
+            "train/cls_loss": 4.76139,
+            "train/dfl_loss": 0.09129,
+            "metrics/precision(B)": 0.00106,
+            "metrics/recall(B)": 0.13837,
+            "metrics/mAP50(B)": 0.00029,
+            "metrics/mAP50-95(B)": 6e-05,
+            "val/box_loss": 2.8654,
+            "val/cls_loss": 3.18644,
+            "val/dfl_loss": 2.46905,
+            "lr/pg0": 0.000557531,
+            "lr/pg1": 0.000557531,
+            "lr/pg2": 0.000557531,
+            "time_seconds": 120.436
+          }
+        ],
+        "results_csv": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test\\results.csv"
+      },
+      "best_checkpoint": {
+        "path": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test\\weights\\best.pt",
+        "size_bytes": 19142810,
+        "sha256": "d47fd84b6e66f48a617c996ae85b5f04660002bfbf60f74826713f0c3b6a0c42"
+      },
+      "last_checkpoint": {
+        "path": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test\\weights\\last.pt",
+        "size_bytes": 19142810,
+        "sha256": "c7106090da57591062fcb7eb576a054f10df7e6f03f4f3dab3adcdbbd5d7f1d4"
+      },
+      "peak_cuda_memory_bytes": 1292700160,
+      "environment": {
+        "captured_at_utc": "2026-07-28T13:22:21.393092+00:00",
+        "project_root": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision",
+        "git_commit": "21434afbe2e7c8af399c051ade3281e4acae7b31",
+        "git_status": "?? configs/yolo11s_baseline.yaml\n?? docs/\n?? metrics/\n?? requirements-cuda129.txt\n?? requirements-training.txt\n?? scripts/check_environment.py\n?? scripts/train.py\n?? tests/test_training_tools.py",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+        "executable": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\.venv\\Scripts\\python.exe",
+        "packages": {
+          "torch": "2.8.0+cu129",
+          "torchvision": "0.23.0+cu129",
+          "ultralytics": "8.4.37",
+          "numpy": "2.4.4",
+          "opencv-python": "5.0.0.93",
+          "Pillow": "12.2.0"
+        },
+        "torch": {
+          "installed": true,
+          "version": "2.8.0+cu129",
+          "cuda_available": true,
+          "cuda_runtime": "12.9",
+          "cudnn": 91002,
+          "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+          "device_count": 1,
+          "vram_bytes": 6438780928,
+          "compute_capability": [
+            8,
+            9
+          ]
+        },
+        "nvidia_smi": {
+          "name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+          "driver": "577.05",
+          "memory_total_mib": "6141",
+          "memory_free_mib": "5038",
+          "compute_capability": "8.9"
+        },
+        "system": {
+          "ram_total_bytes": 16890322944,
+          "ram_available_bytes": 1364254720,
+          "disk_total_bytes": 509722226688,
+          "disk_free_bytes": 57276919808
+        },
+        "dataset": {
+          "total_images": 21527,
+          "ratios": {
+            "train": 0.7,
+            "val": 0.2,
+            "test": 0.1
+          },
+          "splits": {
+            "train": {
+              "images": 15068,
+              "categories": {
+                "fire": 815,
+                "negative": 6886,
+                "smoke": 4107,
+                "smoke+fire": 3260
+              }
+            },
+            "val": {
+              "images": 4306,
+              "categories": {
+                "fire": 233,
+                "negative": 1968,
+                "smoke": 1173,
+                "smoke+fire": 932
+              }
+            },
+            "test": {
+              "images": 2153,
+              "categories": {
+                "fire": 116,
+                "negative": 984,
+                "smoke": 587,
+                "smoke+fire": 466
+              }
+            }
+          },
+          "annotation_cleanup": {
+            "kept_boxes": 26539,
+            "clipped_boxes": 379,
+            "dropped_boxes": 18
+          }
+        }
+      },
+      "best_validation": {
+        "precision": 0.0010607693544081856,
+        "recall": 0.1395550715402279,
+        "map50": 0.0002932194620067354,
+        "map50_95": 5.664787305309821e-05,
+        "per_class": {
+          "smoke": {
+            "precision": 0.0019538386271729102,
+            "recall": 0.2660202360876897,
+            "map50": 0.0005835545528688987,
+            "map50_95": 0.00011279934468866786
+          },
+          "fire": {
+            "precision": 0.0001677000816434608,
+            "recall": 0.013089906992766104,
+            "map50": 2.8843711445720397e-06,
+            "map50_95": 4.964014175286168e-07
+          }
+        },
+        "speed_ms_per_image": {
+          "preprocess": 0.691996540351266,
+          "inference": 4.4638842537967145,
+          "loss": 0.0009737343039005454,
+          "postprocess": 0.9346749421915916
+        },
+        "save_dir": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test_best_validation",
+        "checkpoint": "C:\\Users\\sumai\\OneDrive\\Desktop\\Vscode\\pyrovision\\runs\\pyrovision\\yolo11s_baseline_smoke_test\\weights\\best.pt",
+        "class_name_alignment": {
+          "target_names": {
+            "0": "smoke",
+            "1": "fire"
+          },
+          "checkpoint_names_for_target_ids": {
+            "0": "smoke",
+            "1": "fire"
+          }
+        },
+        "checkpoint_sha256": "d47fd84b6e66f48a617c996ae85b5f04660002bfbf60f74826713f0c3b6a0c42"
+      },
+      "accepted": false,
+      "rejection_reason": "Ultralytics fraction sampling selected 300 negatives and 1 positive from filename-sorted data; the run did not exercise box regression."
+    }
+  ]
+}
