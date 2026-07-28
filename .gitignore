@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local datasets and generated reports (keep directory placeholders)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+artifacts/
+
+# Model outputs (used in later steps)
+runs/
+*.pt
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+

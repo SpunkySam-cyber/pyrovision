@@ -1,0 +1,11 @@
+# Generated data is expected at this project-relative location.
+path: data/processed/dfire
+train: images/train
+val: images/val
+test: images/test
+
+# D-Fire/Kaggle source ordering. Negative images use empty label files.
+names:
+  0: smoke
+  1: fire
+
