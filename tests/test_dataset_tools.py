@@ -27,8 +27,8 @@ class DatasetToolsTest(unittest.TestCase):
 
             categories = (
                 "",
-                "0 0.5 0.5 0.2 0.2\n",
-                "1 0.5 0.5 0.2 0.2\n",
+                "0 0.98 0.5 0.1 0.2\n",
+                "1 0.5 0.5 0.2 0.2\n1 0.5 0.5 0.0 0.0\n",
                 "0 0.4 0.4 0.2 0.2\n1 0.6 0.6 0.2 0.2\n",
             )
             for index in range(40):
@@ -51,6 +51,8 @@ class DatasetToolsTest(unittest.TestCase):
                 seed=42,
             )
             self.assertEqual(summary["total_images"], 40)
+            self.assertEqual(summary["annotation_cleanup"]["clipped_boxes"], 10)
+            self.assertEqual(summary["annotation_cleanup"]["dropped_boxes"], 10)
 
             stats, errors = verify(
                 dataset=output,
@@ -65,6 +67,23 @@ class DatasetToolsTest(unittest.TestCase):
             self.assertEqual(stats["splits"]["train"]["images"], 28)
             self.assertEqual(stats["splits"]["val"]["images"], 8)
             self.assertEqual(stats["splits"]["test"]["images"], 4)
+
+            for split in ("train", "val", "test"):
+                split_dir = output / split
+                split_dir.mkdir()
+                (output / "images" / split).rename(split_dir / "images")
+                (output / "labels" / split).rename(split_dir / "labels")
+
+            alternate_stats, alternate_errors = verify(
+                dataset=output,
+                class_names=("smoke", "fire"),
+                expected_ratios=(0.7, 0.2, 0.1),
+                ratio_tolerance=0.01,
+                distribution_tolerance=0.02,
+                check_hashes=True,
+            )
+            self.assertEqual(alternate_errors, [])
+            self.assertTrue(alternate_stats["valid"])
 
 
 if __name__ == "__main__":

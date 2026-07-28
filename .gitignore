@@ -6,6 +6,7 @@ __pycache__/
 venv/
 
 # Local datasets and generated reports (keep directory placeholders)
+/archive/
 data/raw/*
 !data/raw/.gitkeep
 data/processed/*
@@ -21,4 +22,3 @@ runs/
 .vscode/
 .DS_Store
 Thumbs.db
-

@@ -30,16 +30,25 @@ class Record:
     image: Path
     label: Path | None
     output_stem: str
+    label_text: str
     class_ids: frozenset[int]
     category: str
+    kept_boxes: int
+    clipped_boxes: int
+    dropped_boxes: int
 
 
-def parse_label(label_path: Path | None, class_names: Sequence[str]) -> frozenset[int]:
-    """Read and minimally validate one YOLO label file."""
+def sanitize_label(
+    label_path: Path | None, class_names: Sequence[str]
+) -> tuple[str, frozenset[int], int, int, int]:
+    """Validate YOLO labels, clip boxes to the image, and drop degenerate boxes."""
     if label_path is None:
-        return frozenset()
+        return "", frozenset(), 0, 0, 0
 
     class_ids: set[int] = set()
+    sanitized_lines: list[str] = []
+    clipped_boxes = 0
+    dropped_boxes = 0
     for line_number, raw_line in enumerate(
         label_path.read_text(encoding="utf-8-sig").splitlines(), start=1
     ):
@@ -53,7 +62,7 @@ def parse_label(label_path: Path | None, class_names: Sequence[str]) -> frozense
             )
         try:
             class_id = int(fields[0])
-            coordinates = [float(value) for value in fields[1:]]
+            x_center, y_center, width, height = (float(value) for value in fields[1:])
         except ValueError as exc:
             raise ValueError(f"{label_path}:{line_number}: non-numeric label value") from exc
         if not 0 <= class_id < len(class_names):
@@ -61,10 +70,49 @@ def parse_label(label_path: Path | None, class_names: Sequence[str]) -> frozense
                 f"{label_path}:{line_number}: class {class_id} is outside "
                 f"0..{len(class_names) - 1}"
             )
-        if not all(math.isfinite(value) for value in coordinates):
+        if not all(math.isfinite(value) for value in (x_center, y_center, width, height)):
             raise ValueError(f"{label_path}:{line_number}: non-finite coordinate")
+
+        if width <= 0 or height <= 0:
+            dropped_boxes += 1
+            continue
+
+        x_min = x_center - width / 2
+        y_min = y_center - height / 2
+        x_max = x_center + width / 2
+        y_max = y_center + height / 2
+        clipped_x_min = max(0.0, x_min)
+        clipped_y_min = max(0.0, y_min)
+        clipped_x_max = min(1.0, x_max)
+        clipped_y_max = min(1.0, y_max)
+        if clipped_x_max <= clipped_x_min or clipped_y_max <= clipped_y_min:
+            dropped_boxes += 1
+            continue
+
+        if any(
+            not math.isclose(original, clipped, abs_tol=1e-9)
+            for original, clipped in (
+                (x_min, clipped_x_min),
+                (y_min, clipped_y_min),
+                (x_max, clipped_x_max),
+                (y_max, clipped_y_max),
+            )
+        ):
+            clipped_boxes += 1
+
+        clean_width = clipped_x_max - clipped_x_min
+        clean_height = clipped_y_max - clipped_y_min
+        clean_x_center = (clipped_x_min + clipped_x_max) / 2
+        clean_y_center = (clipped_y_min + clipped_y_max) / 2
+        sanitized_lines.append(
+            f"{class_id} {clean_x_center:.8f} {clean_y_center:.8f} "
+            f"{clean_width:.8f} {clean_height:.8f}"
+        )
         class_ids.add(class_id)
-    return frozenset(class_ids)
+    label_text = "\n".join(sanitized_lines)
+    if label_text:
+        label_text += "\n"
+    return label_text, frozenset(class_ids), len(sanitized_lines), clipped_boxes, dropped_boxes
 
 
 def category_for(class_ids: frozenset[int], class_names: Sequence[str]) -> str:
@@ -123,14 +171,20 @@ def discover_records(
             )
         seen_stems[stem_key] = image
 
-        class_ids = parse_label(label, class_names)
+        label_text, class_ids, kept_boxes, clipped_boxes, dropped_boxes = sanitize_label(
+            label, class_names
+        )
         records.append(
             Record(
                 image=image,
                 label=label,
                 output_stem=image.stem,
+                label_text=label_text,
                 class_ids=class_ids,
                 category=category_for(class_ids, class_names),
+                kept_boxes=kept_boxes,
+                clipped_boxes=clipped_boxes,
+                dropped_boxes=dropped_boxes,
             )
         )
     return records
@@ -194,10 +248,7 @@ def write_split(
             image_name = f"{record.output_stem}{record.image.suffix.lower()}"
             label_name = f"{record.output_stem}.txt"
             shutil.copy2(record.image, image_dir / image_name)
-            if record.label is None:
-                (label_dir / label_name).write_text("", encoding="utf-8")
-            else:
-                shutil.copy2(record.label, label_dir / label_name)
+            (label_dir / label_name).write_text(record.label_text, encoding="utf-8")
             manifest_rows.append(
                 {
                     "split": split,
@@ -254,6 +305,11 @@ def prepare(
         "class_names": list(class_names),
         "total_images": len(records),
         "source_categories": dict(sorted(Counter(record.category for record in records).items())),
+        "annotation_cleanup": {
+            "kept_boxes": sum(record.kept_boxes for record in records),
+            "clipped_boxes": sum(record.clipped_boxes for record in records),
+            "dropped_boxes": sum(record.dropped_boxes for record in records),
+        },
         "splits": {
             split: {
                 "images": len(items),
@@ -315,4 +371,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -17,6 +17,18 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 SPLITS = ("train", "val", "test")
 
 
+def split_directories(dataset: Path, split: str) -> tuple[Path, Path]:
+    """Resolve either images/train or train/images YOLO directory layouts."""
+    layouts = (
+        (dataset / "images" / split, dataset / "labels" / split),
+        (dataset / split / "images", dataset / split / "labels"),
+    )
+    for image_dir, label_dir in layouts:
+        if image_dir.is_dir() and label_dir.is_dir():
+            return image_dir, label_dir
+    return layouts[0]
+
+
 def image_digest(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -90,8 +102,7 @@ def verify(
     category_totals: Counter[str] = Counter()
 
     for split in SPLITS:
-        image_dir = dataset / "images" / split
-        label_dir = dataset / "labels" / split
+        image_dir, label_dir = split_directories(dataset, split)
         if not image_dir.is_dir():
             errors.append(f"Missing image directory: {image_dir}")
             continue
@@ -256,4 +267,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
