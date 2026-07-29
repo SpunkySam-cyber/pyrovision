@@ -18,7 +18,7 @@ Status: **complete**
 
 ## Step 2 — YOLO11 training
 
-Status: **in progress — full training pending**
+Status: **complete**
 
 ### 2026-07-28 environment audit
 
@@ -113,3 +113,39 @@ The full-training input gate is accepted.
 - Decision: resume from epoch 51 and pause again after epoch 60 for review.
 - The runner now supports `resume --stop-after-epoch N` and mirrors every
   resumed epoch into the same experiment history.
+
+### 2026-07-29 training completion and finalization
+
+- Training stopped after 70 completed epochs because the validation metric had
+  plateaued; no epoch after 54 improved mAP50–95.
+- Selected checkpoint: epoch 54 `best.pt`.
+- Explicit best-checkpoint validation on 4,306 validation images: precision
+  0.7905, recall 0.7118, mAP50 0.7893, mAP50–95 0.4669.
+- Smoke: P 0.8407, R 0.7833, mAP50 0.8572, mAP50–95 0.5421.
+- Fire: P 0.7403, R 0.6404, mAP50 0.7215, mAP50–95 0.3917.
+- Epoch-70 `last.pt`: P 0.7805, R 0.7231, mAP50 0.7865,
+  mAP50–95 0.4640.
+- Best SHA-256: `21812ec7917bda5ad004fc085ba6a9d8ee1b375c95db2efe754463fc430d28c3`.
+- Last SHA-256: `da284cd76bd7c8150a45b8f5f89b22f656e6356b4282e5313445b8be0dfcceaf`.
+- The held-out test split remained untouched through Step 2.
+- Gate result: accepted; Step 3 evaluation unlocked.
+
+## Step 3 — held-out evaluation
+
+Status: **complete**
+
+### 2026-07-29 one-time test evaluation
+
+- Selected checkpoint: epoch 54 `best.pt`, SHA-256 verified.
+- Test split: 2,153 images and 2,710 instances; no training or model selection
+  used this split.
+- Overall: precision 0.7657, recall 0.6992, mAP50 0.7642, mAP50–95 0.4526.
+- Smoke: P 0.8189, R 0.7806, mAP50 0.8368, mAP50–95 0.5378.
+- Fire: P 0.7125, R 0.6178, mAP50 0.6916, mAP50–95 0.3675.
+- Batched model inference: 4.30 ms/image.
+- Generated artifacts: raw and normalized confusion matrices, PR, F1,
+  precision-confidence and recall-confidence curves, and prediction batches.
+- Deterministic sanity set: negative, smoke-only, fire-only, and combined cases
+  all behaved as expected at confidence 0.25.
+- Gate result: accepted for Step 4 local real-time inference; not approved for
+  safety-critical deployment.

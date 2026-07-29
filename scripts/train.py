@@ -606,11 +606,79 @@ def run_resume(
     write_metrics(metrics_path, final_metrics)
 
 
+def run_finalize(config: dict[str, Any], metrics_path: Path) -> None:
+    """Finalize a paused training run using validation data only."""
+    metrics = load_metrics(metrics_path)
+    record = metrics.get("training") or {}
+    epoch_metrics = record.get("epoch_metrics") or {}
+    if not epoch_metrics.get("epochs_completed"):
+        raise ValueError("No completed training epochs are available to finalize")
+
+    run_dir = resolved_path(config["project"]) / f"{config['experiment_id']}_train"
+    best_path = run_dir / "weights" / "best.pt"
+    last_path = run_dir / "weights" / "last.pt"
+    if not best_path.is_file() or not last_path.is_file():
+        raise FileNotFoundError("Both best.pt and last.pt are required for finalization")
+
+    metrics["status"] = "training_finalization_in_progress"
+    record["finalization_started_at_utc"] = utc_now()
+    record["best_checkpoint"] = checkpoint_record(best_path)
+    record["last_checkpoint"] = checkpoint_record(last_path)
+    metrics["training"] = record
+    write_metrics(metrics_path, metrics)
+
+    try:
+        best_validation = validate_model(
+            best_path,
+            config,
+            f"{config['experiment_id']}_train_best_validation",
+        )
+        last_validation = validate_model(
+            last_path,
+            config,
+            f"{config['experiment_id']}_train_last_validation",
+        )
+    except BaseException as exc:
+        failed = load_metrics(metrics_path)
+        failed_record = failed.get("training") or record
+        failed_record["finalization_failed_at_utc"] = utc_now()
+        failed_record["finalization_error"] = {
+            "type": type(exc).__name__,
+            "message": str(exc),
+        }
+        failed["training"] = failed_record
+        failed["status"] = "training_finalization_failed"
+        write_metrics(metrics_path, failed)
+        raise
+
+    metrics = load_metrics(metrics_path)
+    record = metrics.get("training") or record
+    best_epoch = int(epoch_metrics["best_epoch"])
+    record["finalized_at_utc"] = utc_now()
+    record["completed_epochs"] = int(epoch_metrics["epochs_completed"])
+    record["selected_checkpoint"] = {
+        "path": str(best_path),
+        "epoch": best_epoch,
+        "selection_metric": "validation mAP50-95",
+        "sha256": sha256_file(best_path),
+    }
+    record["best_validation"] = best_validation
+    record["last_validation"] = last_validation
+    record["environment_at_finalization"] = collect_environment()
+    metrics["training"] = record
+    metrics["posttrained_validation"] = {
+        "best": best_validation,
+        "last": last_validation,
+    }
+    metrics["status"] = "training_complete"
+    write_metrics(metrics_path, metrics)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "mode",
-        choices=("baseline", "smoke-test", "train", "resume"),
+        choices=("baseline", "smoke-test", "train", "resume", "finalize"),
         help="Experiment stage",
     )
     parser.add_argument(
@@ -647,6 +715,8 @@ def main() -> int:
         )
     elif args.mode == "resume":
         run_resume(config, metrics_path, args.stop_after_epoch)
+    elif args.mode == "finalize":
+        run_finalize(config, metrics_path)
     else:
         run_training(
             config,

@@ -103,6 +103,9 @@ The verified stage commands are deliberately separate:
 
 # Resume a paused run and preserve all optimizer/scheduler state
 .venv\Scripts\python.exe scripts\train.py resume --stop-after-epoch 60
+
+# Validate and hash best/last checkpoints without touching the test split
+.venv\Scripts\python.exe scripts\train.py finalize
 ```
 
 Per-epoch box/class/DFL losses, precision, recall, mAP50, and mAP50–95 are
@@ -117,5 +120,30 @@ by Git.
 `last.pt` have been fully written. It exits before Ultralytics strips optimizer
 state during normal finalization, allowing another true resume later.
 
-The pre-training validation and accepted two-epoch GPU smoke-test results are
-documented in `docs/training/yolo11s_baseline.md`. Full training is pending.
+Training completed after 70 epochs, with epoch 54 selected by validation
+mAP50–95. Its validation metrics are precision 0.7905, recall 0.7118, mAP50
+0.7893, and mAP50–95 0.4669. Full before/during/after metrics and checkpoint
+hashes are documented in `docs/training/yolo11s_baseline.md`.
+
+## Step 3 — held-out evaluation
+
+Run the selected checkpoint once on the untouched test split:
+
+```powershell
+.venv\Scripts\python.exe scripts\evaluate.py
+```
+
+The command refuses to run before Step 2 is finalized or after a completed
+test result already exists. It records aggregate and per-class metrics,
+generates confusion matrices and metric curves, and saves deterministic
+negative/smoke/fire/combined sanity predictions.
+
+| Scope | Precision | Recall | mAP50 | mAP50–95 |
+| --- | ---: | ---: | ---: | ---: |
+| Overall | 0.7657 | 0.6992 | 0.7642 | 0.4526 |
+| Smoke | 0.8189 | 0.7806 | 0.8368 | 0.5378 |
+| Fire | 0.7125 | 0.6178 | 0.6916 | 0.3675 |
+
+The complete evaluation record and limitations are documented in
+`docs/evaluation.md`. Generated plots and annotated test images remain local
+and Git-ignored with the run directory.

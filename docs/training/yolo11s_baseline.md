@@ -2,7 +2,7 @@
 
 Experiment ID: `yolo11s_baseline`
 
-Status: **full training resumed from epoch 50; next review at epoch 60**
+Status: **complete — epoch 54 selected from 70 completed epochs**
 
 ## Objective
 
@@ -43,12 +43,34 @@ peak VRAM, best epoch, checkpoints, and the final environment.
 
 ### After fine-tuning
 
-- Best-checkpoint precision: pending
-- Best-checkpoint recall: pending
-- Best-checkpoint mAP50: pending
-- Best-checkpoint mAP50–95: pending
-- Last-checkpoint metrics: pending
-- Before/after deltas: pending
+| Checkpoint | Epoch | Precision | Recall | mAP50 | mAP50–95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Selected `best.pt` | 54 | 0.7905 | 0.7118 | 0.7893 | 0.4669 |
+| `last.pt` | 70 | 0.7805 | 0.7231 | 0.7865 | 0.4640 |
+
+Selected-checkpoint per-class validation:
+
+| Class | Precision | Recall | mAP50 | mAP50–95 |
+| --- | ---: | ---: | ---: | ---: |
+| Smoke | 0.8407 | 0.7833 | 0.8572 | 0.5421 |
+| Fire | 0.7403 | 0.6404 | 0.7215 | 0.3917 |
+
+Absolute improvement over the pre-fine-tuning target-ID baseline:
+
+- Precision: +0.7866
+- Recall: +0.7053
+- mAP50: +0.7892
+- mAP50–95: +0.4669
+
+The last checkpoint has 1.12 percentage points more recall but lower precision
+and lower mAP50–95. Epoch 54 is selected because mAP50–95 is the primary model
+selection metric. The plateau from epochs 55–70 does not justify additional
+epochs with the same configuration.
+
+Checkpoint integrity:
+
+- `best.pt` SHA-256: `21812ec7917bda5ad004fc085ba6a9d8ee1b375c95db2efe754463fc430d28c3`
+- `last.pt` SHA-256: `da284cd76bd7c8150a45b8f5f89b22f656e6356b4282e5313445b8be0dfcceaf`
 
 ## Environment audit
 
@@ -71,3 +93,5 @@ peak VRAM, best epoch, checkpoints, and the final environment.
 | 2026-07-28 | Rebuilt processed dataset | Repaired 91 JPEGs in the processed copy; strict verification passed with 0 errors |
 | 2026-07-29 | User-requested pause after epoch 50 | Best epoch 49: P 0.7950, R 0.6981, mAP50 0.7842, mAP50–95 0.4643; resumable state verified |
 | 2026-07-29 | Continue-training decision | Resume at epoch 51 and pause safely after epoch 60 |
+| 2026-07-29 | Final training decision | Stop after 70 epochs; validation plateaued after epoch 54 |
+| 2026-07-29 | Explicit best/last validation | Epoch 54 selected with P 0.7905, R 0.7118, mAP50 0.7893, mAP50–95 0.4669 |
