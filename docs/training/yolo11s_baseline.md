@@ -2,7 +2,7 @@
 
 Experiment ID: `yolo11s_baseline`
 
-Status: **pre-training baseline and smoke test complete; full training pending**
+Status: **full training resumed from epoch 50; next review at epoch 60**
 
 ## Objective
 
@@ -69,3 +69,5 @@ peak VRAM, best epoch, checkpoints, and the final environment.
 | 2026-07-28 | Smoke-test attempt 1 | Rejected: filename-ordered fraction contained 300 negatives and 1 positive |
 | 2026-07-28 | Stratified smoke-test attempt 2 | Accepted: finite losses; P 0.2172, R 0.2069, mAP50 0.1274, mAP50–95 0.04056 |
 | 2026-07-28 | Rebuilt processed dataset | Repaired 91 JPEGs in the processed copy; strict verification passed with 0 errors |
+| 2026-07-29 | User-requested pause after epoch 50 | Best epoch 49: P 0.7950, R 0.6981, mAP50 0.7842, mAP50–95 0.4643; resumable state verified |
+| 2026-07-29 | Continue-training decision | Resume at epoch 51 and pause safely after epoch 60 |

@@ -100,6 +100,9 @@ The verified stage commands are deliberately separate:
 
 # Run the full fine-tuning job only after both gates pass
 .venv\Scripts\python.exe scripts\train.py train
+
+# Resume a paused run and preserve all optimizer/scheduler state
+.venv\Scripts\python.exe scripts\train.py resume --stop-after-epoch 60
 ```
 
 Per-epoch box/class/DFL losses, precision, recall, mAP50, and mAP50–95 are
@@ -109,6 +112,10 @@ the pre-training baseline, environment details, best/last checkpoint hashes,
 peak GPU allocation, explicit best-checkpoint validation, and any failure.
 Weights, local datasets, and generated run artifacts are intentionally ignored
 by Git.
+
+`--stop-after-epoch` pauses only after that epoch's metrics and resumable
+`last.pt` have been fully written. It exits before Ultralytics strips optimizer
+state during normal finalization, allowing another true resume later.
 
 The pre-training validation and accepted two-epoch GPU smoke-test results are
 documented in `docs/training/yolo11s_baseline.md`. Full training is pending.

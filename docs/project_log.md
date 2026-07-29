@@ -102,3 +102,14 @@ unchanged. The processed split must be rebuilt and re-verified before full
 training. That rebuild completed on 2026-07-28 and passed strict verification
 across all 21,527 images with zero errors and no cross-split content leakage.
 The full-training input gate is accepted.
+
+### 2026-07-29 epoch-50 pause and continuation decision
+
+- Training paused safely after epoch 50 with resumable optimizer, scheduler,
+  scaler, and EMA state preserved in `last.pt`.
+- Best checkpoint at the pause: epoch 49, precision 0.7950, recall 0.6981,
+  mAP50 0.7842, and mAP50–95 0.4643.
+- The validation trend was still improving slowly without clear overfitting.
+- Decision: resume from epoch 51 and pause again after epoch 60 for review.
+- The runner now supports `resume --stop-after-epoch N` and mirrors every
+  resumed epoch into the same experiment history.

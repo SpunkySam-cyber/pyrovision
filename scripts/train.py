@@ -29,6 +29,10 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from check_environment import collect_environment  # noqa: E402
 
 
+class TrainingPauseRequested(Exception):
+    """Signal a deliberate pause after a fully checkpointed epoch."""
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -324,8 +328,52 @@ def record_training_progress(
     write_metrics(metrics_path, metrics)
 
 
+def epoch_end_callback(
+    metrics_path: Path,
+    stage: str,
+    stop_after_epoch: int | None,
+):
+    def callback(trainer: Any) -> None:
+        record_training_progress(metrics_path, stage, trainer)
+        completed_epoch = int(trainer.epoch) + 1
+        if stop_after_epoch is not None and completed_epoch >= stop_after_epoch:
+            raise TrainingPauseRequested(
+                f"Requested pause after completed epoch {completed_epoch}"
+            )
+
+    return callback
+
+
+def mark_training_paused(
+    metrics_path: Path,
+    stage: str,
+    save_dir: Path,
+    requested_epoch: int,
+) -> None:
+    metrics = load_metrics(metrics_path)
+    record = metrics.get(stage) or {}
+    epoch_metrics = record.get("epoch_metrics") or {}
+    completed_epoch = int(epoch_metrics.get("epochs_completed") or requested_epoch)
+    best_path = save_dir / "weights" / "best.pt"
+    last_path = save_dir / "weights" / "last.pt"
+    record["paused_at_utc"] = utc_now()
+    record["paused_after_epoch"] = completed_epoch
+    record["resume_checkpoint"] = str(last_path)
+    record["pause_reason"] = (
+        f"User-requested pause after completed epoch {requested_epoch}."
+    )
+    record["best_checkpoint"] = checkpoint_record(best_path)
+    record["last_checkpoint"] = checkpoint_record(last_path)
+    metrics[stage] = record
+    metrics["status"] = f"{stage}_paused" if stage != "training" else "training_paused"
+    write_metrics(metrics_path, metrics)
+
+
 def run_training(
-    config: dict[str, Any], metrics_path: Path, smoke_test: bool
+    config: dict[str, Any],
+    metrics_path: Path,
+    smoke_test: bool,
+    stop_after_epoch: int | None = None,
 ) -> None:
     import torch
     from ultralytics import YOLO
@@ -380,10 +428,18 @@ def run_training(
     model = YOLO(config["model"])
     model.add_callback(
         "on_fit_epoch_end",
-        lambda trainer: record_training_progress(metrics_path, stage, trainer),
+        epoch_end_callback(metrics_path, stage, stop_after_epoch),
     )
     try:
         model.train(**arguments)
+    except TrainingPauseRequested:
+        mark_training_paused(
+            metrics_path,
+            stage,
+            Path(model.trainer.save_dir),
+            int(stop_after_epoch),
+        )
+        return
     except BaseException as exc:
         failed_metrics = load_metrics(metrics_path)
         failed_record = failed_metrics.get(stage) or initial_record
@@ -441,13 +497,129 @@ def run_training(
     write_metrics(metrics_path, metrics)
 
 
+def run_resume(
+    config: dict[str, Any],
+    metrics_path: Path,
+    stop_after_epoch: int | None,
+) -> None:
+    import torch
+    from ultralytics import YOLO
+
+    metrics = load_metrics(metrics_path)
+    record = metrics.get("training") or {}
+    epoch_metrics = record.get("epoch_metrics") or {}
+    starting_epoch = int(epoch_metrics.get("epochs_completed") or 0)
+    if stop_after_epoch is not None and stop_after_epoch <= starting_epoch:
+        raise ValueError(
+            f"Stop epoch must be greater than completed epoch {starting_epoch}"
+        )
+    checkpoint_value = record.get("resume_checkpoint")
+    if not checkpoint_value:
+        checkpoint_value = (
+            resolved_path(config["project"])
+            / f"{config['experiment_id']}_train"
+            / "weights"
+            / "last.pt"
+        )
+    checkpoint = Path(checkpoint_value).resolve()
+    if not checkpoint.is_file():
+        raise FileNotFoundError(f"Resume checkpoint does not exist: {checkpoint}")
+
+    resume_event = {
+        "resumed_at_utc": utc_now(),
+        "starting_after_epoch": starting_epoch,
+        "checkpoint": str(checkpoint),
+        "checkpoint_sha256": sha256_file(checkpoint),
+        "requested_pause_epoch": stop_after_epoch,
+        "environment": collect_environment(),
+    }
+    record.setdefault("resume_history", []).append(resume_event)
+    record["active_resume"] = resume_event
+    metrics["training"] = record
+    metrics["status"] = "training_in_progress"
+    write_metrics(metrics_path, metrics)
+
+    torch.cuda.reset_peak_memory_stats() if torch.cuda.is_available() else None
+    model = YOLO(str(checkpoint))
+    model.add_callback(
+        "on_fit_epoch_end",
+        epoch_end_callback(metrics_path, "training", stop_after_epoch),
+    )
+    try:
+        model.train(resume=True)
+    except TrainingPauseRequested:
+        save_dir = Path(model.trainer.save_dir)
+        mark_training_paused(
+            metrics_path,
+            "training",
+            save_dir,
+            int(stop_after_epoch),
+        )
+        return
+    except BaseException as exc:
+        failed_metrics = load_metrics(metrics_path)
+        failed_record = failed_metrics.get("training") or record
+        failed_record["failed_at_utc"] = utc_now()
+        failed_record["error"] = {
+            "type": type(exc).__name__,
+            "message": str(exc),
+        }
+        failed_metrics["training"] = failed_record
+        failed_metrics["status"] = "training_failed"
+        write_metrics(metrics_path, failed_metrics)
+        raise
+
+    save_dir = Path(model.trainer.save_dir)
+    best_path = save_dir / "weights" / "best.pt"
+    last_path = save_dir / "weights" / "last.pt"
+    final_metrics = load_metrics(metrics_path)
+    final_record = final_metrics.get("training") or record
+    final_record.update(
+        {
+            "completed_at_utc": utc_now(),
+            "run_dir": str(save_dir),
+            "epoch_metrics": read_epoch_metrics(save_dir / "results.csv"),
+            "best_checkpoint": checkpoint_record(best_path),
+            "last_checkpoint": checkpoint_record(last_path),
+            "peak_cuda_memory_bytes_after_resume": (
+                torch.cuda.max_memory_allocated()
+                if torch.cuda.is_available()
+                else None
+            ),
+            "environment_at_end": collect_environment(),
+        }
+    )
+    if best_path.is_file():
+        final_record["best_validation"] = validate_model(
+            best_path, config, f"{config['experiment_id']}_train_best_validation"
+        )
+    if last_path.is_file():
+        final_record["last_validation"] = validate_model(
+            last_path, config, f"{config['experiment_id']}_train_last_validation"
+        )
+    final_metrics["training"] = final_record
+    final_metrics["posttrained_validation"] = {
+        "best": final_record.get("best_validation"),
+        "last": final_record.get("last_validation"),
+    }
+    final_metrics["status"] = "training_complete"
+    write_metrics(metrics_path, final_metrics)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "mode", choices=("baseline", "smoke-test", "train"), help="Experiment stage"
+        "mode",
+        choices=("baseline", "smoke-test", "train", "resume"),
+        help="Experiment stage",
     )
     parser.add_argument(
         "--config", type=Path, default=PROJECT_ROOT / "configs" / "yolo11s_baseline.yaml"
+    )
+    parser.add_argument(
+        "--stop-after-epoch",
+        type=int,
+        help="Pause after this epoch is fully logged and checkpointed",
     )
     parser.add_argument(
         "--allow-cpu",
@@ -467,9 +639,21 @@ def main() -> int:
     if args.mode == "baseline":
         run_baseline(config, metrics_path)
     elif args.mode == "smoke-test":
-        run_training(config, metrics_path, smoke_test=True)
+        run_training(
+            config,
+            metrics_path,
+            smoke_test=True,
+            stop_after_epoch=args.stop_after_epoch,
+        )
+    elif args.mode == "resume":
+        run_resume(config, metrics_path, args.stop_after_epoch)
     else:
-        run_training(config, metrics_path, smoke_test=False)
+        run_training(
+            config,
+            metrics_path,
+            smoke_test=False,
+            stop_after_epoch=args.stop_after_epoch,
+        )
     return 0
 
 

@@ -13,6 +13,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 from train import (  # noqa: E402
+    TrainingPauseRequested,
+    epoch_end_callback,
     read_epoch_metrics,
     record_training_progress,
     stratified_sample_rows,
@@ -101,6 +103,35 @@ class TrainingToolsTest(unittest.TestCase):
             )
             self.assertEqual(
                 persisted["training"]["epoch_metrics"]["best_epoch"], 1
+            )
+
+    def test_epoch_end_callback_pauses_only_after_target_is_logged(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            metrics_path = root / "metrics.json"
+            metrics_path.write_text(
+                '{"status": "training_in_progress", "training": {}}\n',
+                encoding="utf-8",
+            )
+            (root / "results.csv").write_text(
+                "epoch,metrics/mAP50-95(B),train/box_loss\n"
+                "60,0.5,1.0\n",
+                encoding="utf-8",
+            )
+            callback = epoch_end_callback(metrics_path, "training", 60)
+
+            with self.assertRaises(TrainingPauseRequested):
+                callback(SimpleNamespace(save_dir=root, epoch=59))
+
+            persisted = json.loads(metrics_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                persisted["training"]["epoch_metrics"]["epochs_completed"], 1
+            )
+            self.assertEqual(
+                persisted["training"]["epoch_metrics"]["last_epoch_metrics"][
+                    "epoch"
+                ],
+                60,
             )
 
 
