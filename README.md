@@ -151,7 +151,7 @@ and Git-ignored with the run directory.
 
 ## Step 4 — local real-time inference
 
-Status: **Milestone 1 foundation complete; image/video/webcam inference not yet
+Status: **Milestone 2 image inference complete; video/webcam inference not yet
 implemented.**
 
 The reusable package now lives under `src/pyrovision/`. Its versioned inference
@@ -178,7 +178,36 @@ Run the complete foundation test gate:
 .venv\Scripts\python.exe -B -m unittest discover -s tests -v
 ```
 
-All 13 tests currently pass: the original six Step 1–3 tests and seven new
-foundation tests. See `docs/inference.md` for the architecture and configuration
-contract. Milestone 2 will add still-image inference without modifying the
-training scripts.
+Milestone 2 adds a reusable `DetectorEngine`, class-aware confidence filtering,
+OpenCV annotation, annotated-image output, deterministic JSON output, and a thin
+image CLI. Run local image inference with automatic GPU selection:
+
+```powershell
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\image.jpg
+```
+
+Useful overrides:
+
+```powershell
+# Force CPU and change the output directory
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\image.jpg `
+  --device cpu `
+  --output-dir outputs\manual
+
+# Apply one global threshold, then lower only the fire threshold
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\image.jpg `
+  --confidence 0.40 `
+  --class-threshold fire=0.30
+```
+
+The command writes `<stem>_annotated.<ext>` and `<stem>_detections.json` under
+the configured ignored output directory. CPU FP32 and CUDA FP16 inference were
+both verified on a training-split smoke-and-fire image with consistent objects.
+
+All 19 tests currently pass: the original six Step 1–3 tests, seven foundation
+tests, and six image-inference tests. See `docs/inference.md` for the full
+architecture and verification record. Milestone 3 will add video inference;
+it has not started.

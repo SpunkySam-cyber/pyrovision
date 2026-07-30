@@ -1,6 +1,6 @@
 # Step 4 — local inference
 
-Status: **Milestone 1 foundation complete**
+Status: **Milestone 2 image inference complete**
 
 Milestone 1 establishes the reusable boundary that later image, video, webcam,
 and FastAPI adapters will share. It does not run detection or write annotated
@@ -17,6 +17,9 @@ src/pyrovision/
   errors.py         Project-owned expected exception hierarchy
   hashing.py        Streaming SHA-256 utility
   types.py          Framework-independent detection and frame results
+  model.py          Verified YOLO loading and frame detection engine
+  annotation.py     OpenCV boxes, labels, confidence, and colors
+  images.py         Image decode, orchestration, persistence, and JSON output
 ```
 
 The package never imports `scripts/train.py`. The training runner imports only
@@ -99,6 +102,109 @@ Milestone 1 verification completed on 2026-07-31:
 - New foundation tests: 7 passed
 - Total automated tests: 13 passed
 
-Milestone 2 will add `DetectorEngine` and still-image inference. Video, webcam,
-performance instrumentation, hardening, backend work, and deployment remain
+## Milestone 2 — image inference
+
+`DetectorEngine.from_config()` performs the complete acceptance sequence before
+an image is processed:
+
+1. Resolve the epoch-54 checkpoint.
+2. Recalculate and verify its SHA-256.
+3. Resolve the requested CPU or CUDA device.
+4. Load YOLO through an injectable model factory.
+5. Validate exact checkpoint class count, ID order, spelling, and casing.
+6. Resolve FP32/FP16 behavior from the device and `half` policy.
+
+`predict_frame()` accepts a BGR NumPy frame and returns a project-owned
+`FrameResult`. It calls YOLO with the configured image size, IoU, maximum
+detections, device, and precision mode. The YOLO candidate threshold is the
+lowest configured global/class threshold; each returned detection is then
+filtered against its own class threshold. Coordinates are clipped to the frame,
+degenerate boxes are discarded, and results receive a deterministic ordering.
+
+The engine uses a prediction lock. This avoids concurrent access to mutable
+Ultralytics model state and establishes a safe boundary for the later FastAPI
+adapter.
+
+### Image command
+
+```powershell
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\image.jpg
+```
+
+Supported inputs are BMP, JPEG, PNG, TIFF, and WebP. Unsupported, missing, or
+undecodable files produce structured errors and a non-zero exit code.
+
+Overrides include:
+
+- `--device auto|cpu|cuda|cuda:N`
+- `--confidence 0.40`
+- repeatable `--class-threshold fire=0.30`
+- `--iou 0.70`
+- `--output-dir outputs/manual`
+- `--save-media` / `--no-save-media`
+- `--save-detections` / `--no-save-detections`
+
+A global CLI confidence override applies to all expected classes first;
+repeatable class overrides are applied afterward.
+
+### Output contract
+
+For `sample.jpg`, the default output contains:
+
+```text
+outputs/inference/
+  sample_annotated.jpg
+  sample_detections.json
+```
+
+The JSON record contains checkpoint identity, resolved device, output paths,
+source dimensions, frame index/timestamp, and detections with stable fields:
+
+```json
+{
+  "class_id": 1,
+  "class": "fire",
+  "confidence": 0.912346,
+  "bbox": [20.0, 15.0, 100.0, 75.0]
+}
+```
+
+Boxes use pixel-space `[x_min, y_min, x_max, y_max]`. Rendering operates on a
+copy and never mutates the input frame.
+
+### Real CPU/CUDA verification
+
+The hardware gate used
+`data/processed/dfire/images/train/AoF04009.jpg`, a 1280×720 `smoke+fire`
+training-split image. The held-out test split was not used.
+
+| Device | Precision mode | Smoke | Fire | Output |
+| --- | --- | ---: | ---: | --- |
+| CPU | FP32 | 1 | 3 | Annotated JPEG and JSON passed |
+| RTX 4050 `cuda:0` | FP16 | 1 | 3 | Annotated JPEG and JSON passed |
+
+Minor confidence/coordinate differences are expected between FP32 and FP16.
+Both devices found the same four objects, and manual inspection confirmed
+plausible annotations. Generated outputs remain local under
+`outputs/milestone2/` and are ignored by Git. The structured verification record
+is versioned at `metrics/step4_milestone2.json`.
+
+### Milestone 2 verification
+
+- Existing Step 1–3 tests: 6 passed
+- Foundation tests: 7 passed
+- Image-inference tests: 6 passed
+- Total: 19 passed
+- CPU execution: passed
+- CUDA execution: passed
+- Annotated image decode/manual inspection: passed
+- Structured JSON decode: passed
+
+Detailed latency and FPS are intentionally not reported yet; those measurements
+belong to Milestone 5 after the video pipeline exists.
+
+Milestone 3 will add ordered video decoding, frame processing, annotated video
+writing, JSONL records, summaries, codec checks, and graceful interruption.
+Video, webcam, performance instrumentation, backend work, and deployment remain
 out of scope at this gate.

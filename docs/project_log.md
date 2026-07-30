@@ -175,3 +175,26 @@ Status: **Milestone 1 complete; stopped before Milestone 2**
 - Added ignore rules for local media, outputs, logs, and detection artifacts.
 - Milestone gate: accepted. Image inference remains deliberately unimplemented
   until Milestone 2 is authorized.
+
+### 2026-07-31 Milestone 2 — image inference
+
+- Added `DetectorEngine` with verified checkpoint loading, exact class
+  validation, explicit CPU/CUDA execution, FP16 policy, prediction locking, and
+  framework-neutral results.
+- Added global and per-class threshold filtering. YOLO is called at the lowest
+  required candidate threshold before deterministic class-aware filtering.
+- Added coordinate clipping, invalid-box rejection, and stable detection order.
+- Added OpenCV annotation with labeled `smoke` and `fire` boxes and confidence.
+- Added supported-image decoding, optional annotated-image output, atomic JSON
+  output, and structured input/output errors.
+- Added a thin CLI with device, confidence, per-class confidence, IoU, output,
+  and save-policy overrides.
+- Added six image inference tests. All 19 project tests pass.
+- Real CPU FP32 and CUDA FP16 gates both passed on processed training image
+  `AoF04009.jpg`; each found one smoke and three fire regions.
+- Visually inspected the CUDA annotated image; all four boxes were plausible.
+- Generated JPEG/JSON artifacts remain ignored under `outputs/milestone2/`.
+- Machine-readable verification is versioned in
+  `metrics/step4_milestone2.json`.
+- Milestone gate: accepted. Video inference remains unimplemented pending
+  Milestone 3 authorization.
