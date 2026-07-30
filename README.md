@@ -1,8 +1,9 @@
 # PyroVision AI
 
 Real-time fire and smoke detection with YOLO11. The project is being built and
-verified one stage at a time. Dataset preparation is complete; the Step 2
-training pipeline and GPU smoke test are verified, and full training is next.
+verified one stage at a time. Dataset preparation, YOLO11s training, and
+held-out test evaluation (Steps 1–3) are complete. Step 4 local real-time
+inference is the next gated stage and has not yet been implemented.
 
 ## Step 1 — dataset preparation
 
