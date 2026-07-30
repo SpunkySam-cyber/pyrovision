@@ -149,3 +149,29 @@ Status: **complete**
   all behaved as expected at confidence 0.25.
 - Gate result: accepted for Step 4 local real-time inference; not approved for
   safety-critical deployment.
+
+## Step 4 — local real-time inference
+
+Status: **Milestone 1 complete; stopped before Milestone 2**
+
+### 2026-07-31 Milestone 1 — reusable foundation
+
+- Added an installable `src/pyrovision/` package; inference code does not import
+  the training runner.
+- Added a strict, versioned inference configuration with typed checkpoint,
+  model, input, output, and device settings.
+- Added automatic selected-checkpoint resolution with relocation fallback,
+  streaming SHA-256 verification, and exact class-name/order validation.
+- Reverified epoch-54 `best.pt` at SHA-256
+  `21812ec7917bda5ad004fc085ba6a9d8ee1b375c95db2efe754463fc430d28c3`.
+- Loaded checkpoint metadata and confirmed class order `smoke`, `fire`.
+- Added deterministic `BoundingBox`, `Detection`, and `FrameResult` types that
+  do not expose Ultralytics objects to downstream consumers.
+- Added explicit `auto`, `cpu`, `cuda`, and `cuda:N` device resolution. The
+  local gate selected `cuda:0` on the NVIDIA GeForce RTX 4050 Laptop GPU.
+- Extracted the streaming file-hash helper for shared training/inference use;
+  Steps 1–3 retain their existing behavior.
+- Added seven foundation unit tests; all 13 project tests pass.
+- Added ignore rules for local media, outputs, logs, and detection artifacts.
+- Milestone gate: accepted. Image inference remains deliberately unimplemented
+  until Milestone 2 is authorized.

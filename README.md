@@ -148,3 +148,37 @@ negative/smoke/fire/combined sanity predictions.
 The complete evaluation record and limitations are documented in
 `docs/evaluation.md`. Generated plots and annotated test images remain local
 and Git-ignored with the run directory.
+
+## Step 4 — local real-time inference
+
+Status: **Milestone 1 foundation complete; image/video/webcam inference not yet
+implemented.**
+
+The reusable package now lives under `src/pyrovision/`. Its versioned inference
+configuration validates checkpoint selection, expected class names, global and
+class-specific thresholds, device policy, media defaults, and output policy.
+With `checkpoint.path: auto`, it reads the selected epoch-54 checkpoint and
+expected SHA-256 from the Step 2 metrics record. Absolute-path relocation is
+handled through a project-relative run fallback.
+
+`device: auto` selects `cuda:0` when CUDA is available and otherwise uses CPU.
+Explicit `cuda`, `cuda:N`, and `cpu` requests are validated and never silently
+changed. The current local foundation gate resolved the RTX 4050 as `cuda:0`,
+verified the selected checkpoint hash, and confirmed checkpoint classes
+`smoke`, `fire` in the required order.
+
+The initial global and per-class confidence values in
+`configs/inference.yaml` are 0.35, based on the validation-only F1 curve rather
+than the held-out test curve. They remain provisional until development-video
+testing.
+
+Run the complete foundation test gate:
+
+```powershell
+.venv\Scripts\python.exe -B -m unittest discover -s tests -v
+```
+
+All 13 tests currently pass: the original six Step 1–3 tests and seven new
+foundation tests. See `docs/inference.md` for the architecture and configuration
+contract. Milestone 2 will add still-image inference without modifying the
+training scripts.
