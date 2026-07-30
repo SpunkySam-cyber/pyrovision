@@ -17,6 +17,12 @@ artifacts/
 runs/
 *.pt
 
+# Local inference inputs and generated outputs
+/media/
+/outputs/
+/logs/
+/detections/
+
 # Editors / OS
 .idea/
 .vscode/

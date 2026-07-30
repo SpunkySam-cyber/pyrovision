@@ -1,0 +1,38 @@
+schema_version: 1
+
+checkpoint:
+  # "auto" reads training.selected_checkpoint from the versioned metrics record.
+  path: auto
+  metrics_file: metrics/yolo11s_baseline.json
+  verify_sha256: true
+  sha256: null
+  expected_classes:
+    - smoke
+    - fire
+
+# auto selects cuda:0 when available and otherwise falls back to CPU.
+device: auto
+
+model:
+  image_size: 640
+  # Validation-only F1 peaked near confidence 0.351. Development video must
+  # still be used before finalizing operating thresholds.
+  confidence_threshold: 0.35
+  class_thresholds:
+    smoke: 0.35
+    fire: 0.35
+  iou_threshold: 0.7
+  max_detections: 300
+  half: auto
+
+input:
+  source: null
+  webcam_index: 0
+  frame_skip: 0
+
+output:
+  directory: outputs/inference
+  save_media: true
+  save_detections: true
+  display: false
+  video_codec: mp4v

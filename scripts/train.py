@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
 import math
 import os
@@ -25,8 +24,10 @@ os.environ.setdefault("YOLO_CONFIG_DIR", str(LOCAL_CACHE_ROOT / "ultralytics"))
 (LOCAL_CACHE_ROOT / "matplotlib").mkdir(parents=True, exist_ok=True)
 (LOCAL_CACHE_ROOT / "ultralytics").mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from check_environment import collect_environment  # noqa: E402
+from pyrovision.hashing import sha256_file  # noqa: E402
 
 
 class TrainingPauseRequested(Exception):
@@ -62,14 +63,6 @@ def write_metrics(path: Path, metrics: dict[str, Any]) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
     os.replace(temporary, path)
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def finite_float(value: Any) -> float | None:
