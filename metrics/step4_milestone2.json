@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "milestone": "Step 4 Milestone 2 - image inference",
+  "status": "complete",
+  "verified_on": "2026-07-31",
+  "checkpoint": {
+    "epoch": 54,
+    "sha256": "21812ec7917bda5ad004fc085ba6a9d8ee1b375c95db2efe754463fc430d28c3",
+    "classes": [
+      "smoke",
+      "fire"
+    ]
+  },
+  "configuration": {
+    "image_size": 640,
+    "confidence_threshold": 0.35,
+    "class_thresholds": {
+      "smoke": 0.35,
+      "fire": 0.35
+    },
+    "iou_threshold": 0.7,
+    "half": "auto"
+  },
+  "verification_source": {
+    "path": "data/processed/dfire/images/train/AoF04009.jpg",
+    "processed_split": "train",
+    "category": "smoke+fire",
+    "width": 1280,
+    "height": 720,
+    "held_out_test_used": false
+  },
+  "device_results": {
+    "cpu": {
+      "precision_mode": "FP32",
+      "detections": [
+        {
+          "class": "fire",
+          "confidence": 0.828331
+        },
+        {
+          "class": "smoke",
+          "confidence": 0.827935
+        },
+        {
+          "class": "fire",
+          "confidence": 0.79743
+        },
+        {
+          "class": "fire",
+          "confidence": 0.767585
+        }
+      ],
+      "annotated_image_created": true,
+      "structured_json_created": true
+    },
+    "cuda:0": {
+      "device_name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+      "precision_mode": "FP16",
+      "detections": [
+        {
+          "class": "smoke",
+          "confidence": 0.827637
+        },
+        {
+          "class": "fire",
+          "confidence": 0.827637
+        },
+        {
+          "class": "fire",
+          "confidence": 0.797363
+        },
+        {
+          "class": "fire",
+          "confidence": 0.76709
+        }
+      ],
+      "annotated_image_created": true,
+      "structured_json_created": true
+    }
+  },
+  "visual_check": {
+    "passed": true,
+    "summary": "One smoke region and three fire regions were plausibly annotated."
+  },
+  "automated_tests": {
+    "total": 19,
+    "passed": 19,
+    "existing_step_1_to_3": 6,
+    "foundation": 7,
+    "image_inference": 6
+  },
+  "timing": {
+    "measured": false,
+    "reason": "Detailed timing and FPS instrumentation is reserved for Milestone 5."
+  }
+}

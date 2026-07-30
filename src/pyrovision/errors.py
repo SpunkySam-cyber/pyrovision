@@ -23,3 +23,15 @@ class ClassNameMismatchError(CheckpointError):
 
 class DeviceResolutionError(PyroVisionError):
     """Raised when the requested inference device is invalid or unavailable."""
+
+
+class InferenceError(PyroVisionError):
+    """Raised when model execution returns invalid or unusable results."""
+
+
+class InputMediaError(PyroVisionError):
+    """Raised when an input image or media source cannot be read."""
+
+
+class OutputMediaError(PyroVisionError):
+    """Raised when an annotated image or detection record cannot be written."""
