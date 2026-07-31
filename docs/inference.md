@@ -433,3 +433,84 @@ documented hardware verification item. The machine-readable record is
 
 Milestone 5 timing instrumentation, backend work, and deployment remain out of
 scope at this gate.
+
+## Milestone 5 — production hardening
+
+The accepted revised roadmap assigns Milestone 5 to production hardening.
+Historical timing references above describe the earlier plan; no formal
+latency or FPS benchmarking was performed in this milestone.
+
+### Deterministic directory and output behavior
+
+A flat directory is now a valid `--source`. Supported top-level images are
+processed with the existing image pipeline in case-insensitive filename order;
+nested directories and unsupported extensions are not included. An empty
+directory fails before inference output is produced.
+
+```powershell
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\images `
+  --output-dir outputs\directory-run
+```
+
+Existing files are never silently overwritten. First-run names remain
+unchanged. If any requested file in an output group exists, the whole group
+receives the first free `_2`, `_3`, and subsequent suffix. Webcam UTC names and
+programmatic `run_name` values use the same allocator; path-like or
+Windows-invalid stems are rejected.
+
+Atomic JSON now uses collision-resistant temporary files in the destination
+directory. JSON and JSONL serialize with sorted keys, reject NaN/infinity, and
+flush complete JSONL records. Annotated images are encoded to a same-extension
+temporary file and atomically published.
+
+### Validation and failure behavior
+
+Configuration now rejects duplicate YAML keys, missing `schema_version`,
+non-finite probabilities, non-string class names/threshold keys, punctuation in
+four-character codecs, and malformed nested configuration types. Training
+metrics used for automatic checkpoint selection must contain correctly typed
+paths, epochs, experiment IDs, and SHA-256 values.
+
+Checkpoint model results reject fractional/boolean/out-of-range class IDs,
+non-finite confidence or box values, invalid channel counts, malformed result
+arrays, and model-loader failures through project-owned errors. Checkpoint
+hash, exact class order, and explicit CUDA device validation remain fail-closed.
+
+Video and webcam processing now share one ordered frame-processing lifecycle.
+Setup, inference, display, encoding, JSONL, interruption, and cleanup failures
+all attempt to close the display, JSONL writer, video writer, and capture.
+Setup and zero-frame failures write failed summaries when source metadata is
+available. Zero-frame recordings are removed instead of being returned as
+decodable media. Empty videos fail rather than reporting a successful run.
+
+CLI errors retain the existing `success` and `error` fields and add a stable
+`error_type`. `--log-level DEBUG|INFO|WARNING|ERROR` enables optional stderr
+diagnostics; the default remains `WARNING`. `--max-frames` is rejected outside
+webcam mode instead of being silently ignored.
+
+### Milestone 5 verification
+
+- Existing tests before hardening: 34
+- Total tests after hardening: 50 passed
+- Compile/import and dependency checks: passed
+- CPU image inference and collision rerun: passed
+- CUDA flat-directory inference over four training-derived categories: passed
+- Negative image with zero detections: passed
+- CPU video inference and 12/12-frame decode: passed
+- CUDA simulated-camera inference, recording, and 12 JSONL records: passed
+- Two-frame interrupted video, partial decode/JSONL/summary: passed
+- Unsupported/corrupt input and unavailable camera: passed
+- Forced writer-open failure and failed summary without invalid media: passed
+- Checkpoint hash, class order, invalid config, and unavailable device: passed
+- Held-out test data used: no
+- Formal latency/FPS benchmarking performed: no
+
+OpenCV's FFmpeg backend accepted two arbitrary alphanumeric FOURCC probes with
+warnings and still produced decodable 12-frame files; deterministic writer
+failure therefore uses an injected closed backend in tests and the manual
+failure harness. Codec availability remains platform-dependent.
+
+The machine-readable gate record is `metrics/step4_milestone5.json`. A full
+documentation consistency audit remains reserved for Milestone 7. Milestone 6
+has not started.

@@ -256,3 +256,36 @@ Status: **Milestone 1 complete; stopped before Milestone 2**
 - Milestone gate: accepted with physical-camera availability documented as the
   remaining hardware limitation. Performance instrumentation remains pending
   Milestone 5 authorization.
+
+### 2026-07-31 Milestone 5 — production hardening
+
+- Followed the accepted revised milestone definition: production hardening,
+  not the previously planned timing instrumentation.
+- Added strict duplicate-key/schema/type/probability/codec configuration
+  validation and strict automatic-checkpoint metrics validation.
+- Hardened model-result conversion against fractional class IDs, non-finite
+  values, malformed arrays, invalid channels, and model-loader errors while
+  retaining exact checkpoint class order and device validation.
+- Replaced duplicated video/webcam frame loops with a shared ordered processing
+  and cleanup lifecycle. Every output resource and capture is attempted during
+  cleanup, and setup/zero-frame failures produce summaries when metadata is
+  available.
+- Added strict sorted JSON/JSONL, collision-resistant atomic publication,
+  atomic annotated-image writes, safe output stems, deterministic collision
+  suffixes, and removal of zero-frame recordings.
+- Added deterministic flat-directory image orchestration over the existing
+  image pipeline and optional `--log-level` diagnostics. CLI errors now include
+  `error_type`; existing fields and flags remain available.
+- Expanded the suite from 34 to 50 tests. All tests, compile/import checks, and
+  dependency checks pass; Steps 1–3 implementation/config/test files remain
+  unchanged.
+- Manual regressions passed for CPU image/video, CUDA image-directory and
+  simulated-camera inference, empty detections, corrupt/unsupported inputs,
+  unavailable camera/device, writer failure, interruption, output collisions,
+  checkpoint mismatch, class mismatch, and invalid configuration.
+- The held-out test set was not used. Local verification artifacts remain
+  ignored. Machine-readable evidence is versioned in
+  `metrics/step4_milestone5.json`.
+- Formal latency and FPS benchmarking did not start. Milestone 6 remains
+  unauthorized and unstarted; the full documentation audit remains reserved
+  for Milestone 7.

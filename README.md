@@ -151,8 +151,8 @@ and Git-ignored with the run directory.
 
 ## Step 4 — local real-time inference
 
-Status: **Milestone 4 webcam inference complete; performance instrumentation
-not yet implemented.**
+Status: **Milestone 5 production hardening complete; Milestone 6 has not
+started. Formal performance benchmarking remains deferred.**
 
 The reusable package now lives under `src/pyrovision/`. Its versioned inference
 configuration validates checkpoint selection, expected class names, global and
@@ -259,11 +259,41 @@ and JSONL logging can be controlled independently with `--record`/
 writes an atomic summary and uses a UTC-stamped name so separate sessions do
 not overwrite each other.
 
-All 34 tests currently pass. The real CUDA webcam pipeline gate retained and
+The Milestone 4 gate had 34 passing tests. Its real CUDA webcam pipeline retained and
 decoded all 12 frames from the training-derived development stream, wrote 12
 ordered JSONL records, and produced a matching summary. A physical webcam was
 not exposed to this execution environment on indices 0–3 through DirectShow or
 Media Foundation, so final live-camera/window verification remains a local
 hardware check. See `docs/inference.md` and
-`metrics/step4_milestone4.json` for the full record. Milestone 5 performance
-instrumentation has not started.
+`metrics/step4_milestone4.json` for that gate's full record.
+
+Milestone 5 hardens every local inference mode. A flat directory of supported
+images can now use the existing image pipeline in deterministic filename order:
+
+```powershell
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\image-directory `
+  --device cuda:0
+```
+
+Repeated runs no longer overwrite existing outputs. The first run keeps the
+original names; later runs receive `_2`, `_3`, and subsequent deterministic
+suffixes across the entire requested output group. JSON and JSONL are strict,
+key-sorted, reject NaN/infinity, and image/JSON publication is atomic.
+
+Expected CLI failures now include `error_type` while retaining `success` and
+`error`. Optional diagnostics can be enabled without changing default output:
+
+```powershell
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\image.jpg `
+  --log-level INFO
+```
+
+All **50 tests** pass. CPU image/video and CUDA directory/simulated-camera
+regressions passed with the selected checkpoint. Corrupt and unsupported
+inputs, unavailable cameras/devices, writer failure, interruption, collisions,
+checkpoint mismatch, class-order mismatch, and invalid configuration were all
+verified. See `docs/inference.md` and `metrics/step4_milestone5.json` for this
+gate. The held-out test set was not used, and formal latency/FPS benchmarking
+has not started.

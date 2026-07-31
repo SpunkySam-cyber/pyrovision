@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "milestone": "Step 4 Milestone 5 - production hardening",
+  "status": "complete",
+  "verified_on": "2026-07-31",
+  "checkpoint": {
+    "epoch": 54,
+    "sha256": "21812ec7917bda5ad004fc085ba6a9d8ee1b375c95db2efe754463fc430d28c3",
+    "classes": [
+      "smoke",
+      "fire"
+    ]
+  },
+  "hardening": {
+    "strict_yaml_duplicate_keys": true,
+    "required_schema_version": true,
+    "strict_checkpoint_metrics_contract": true,
+    "strict_model_result_values": true,
+    "deterministic_sorted_json": true,
+    "strict_nonfinite_json_rejection": true,
+    "atomic_json_and_image_publication": true,
+    "collision_safe_output_suffixes": true,
+    "safe_output_stems": true,
+    "shared_stream_lifecycle": true,
+    "all_resource_cleanup_attempted": true,
+    "failed_setup_summaries": true,
+    "empty_video_rejection": true,
+    "zero_frame_recording_removal": true,
+    "structured_cli_error_type": true,
+    "optional_log_levels": true,
+    "flat_image_directory_inference": true
+  },
+  "automated_tests": {
+    "existing_before_milestone_5": 34,
+    "total": 50,
+    "passed": 50,
+    "failed": 0,
+    "compile_import_check": "passed",
+    "dependency_check": "passed"
+  },
+  "manual_regressions": {
+    "cpu_image": {
+      "status": "passed",
+      "repeat_collision_suffix": "_2",
+      "detections_consistent": true
+    },
+    "cuda_image_directory": {
+      "status": "passed",
+      "images_processed": 4,
+      "ordered": true,
+      "negative_detections": 0
+    },
+    "cpu_video": {
+      "status": "passed",
+      "frames_processed": 12,
+      "frames_written": 12,
+      "frames_decoded": 12,
+      "detections_total": 18
+    },
+    "cuda_simulated_camera": {
+      "status": "passed",
+      "frames_processed": 12,
+      "frames_written": 12,
+      "frames_decoded": 12,
+      "jsonl_records": 12,
+      "detections_total": 18
+    },
+    "interrupted_video": {
+      "status": "passed",
+      "frames_processed": 2,
+      "frames_written": 2,
+      "frames_decoded": 2,
+      "jsonl_records": 2
+    },
+    "expected_failures": {
+      "unsupported_input": "passed",
+      "corrupt_image": "passed",
+      "unavailable_camera": "passed",
+      "video_writer_open": "passed",
+      "checkpoint_hash": "passed",
+      "class_order": "passed",
+      "invalid_configuration": "passed",
+      "unavailable_device": "passed"
+    }
+  },
+  "verification_sources": {
+    "processed_split": "train",
+    "held_out_test_used": false,
+    "image_directory": "media/dev/milestone5_images",
+    "video_and_camera_stream": "media/dev/milestone3_train_sequence.mp4",
+    "outputs_root": "outputs/milestone5",
+    "outputs_git_ignored": true
+  },
+  "codec_note": {
+    "arbitrary_fourcc_probes": [
+      "ZZZZ",
+      "0000"
+    ],
+    "backend_result": "OpenCV emitted warnings but produced decodable 12-frame MP4 files.",
+    "deterministic_failure_check": "Injected closed writer backend passed."
+  },
+  "performance_benchmarking": {
+    "started": false,
+    "latency_reported": false,
+    "fps_reported": false
+  },
+  "remaining_limitations": [
+    "Physical webcam and GUI display verification remain unavailable in this environment.",
+    "Flat directory inference is fail-fast and non-recursive.",
+    "Collision suffix allocation is deterministic within normal local use but does not provide a cross-process reservation lock.",
+    "Codec support and fallback behavior remain dependent on the installed OpenCV backend.",
+    "Formal latency and FPS instrumentation has not started."
+  ]
+}
