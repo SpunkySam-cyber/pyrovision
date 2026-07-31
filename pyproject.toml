@@ -1,12 +1,24 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=68", "wheel>=0.45"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyrovision-ai"
-version = "0.1.0"
+version = "1.0.0"
 description = "Reusable fire and smoke inference components and API for PyroVision AI"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [{name = "SpunkySam-cyber"}]
 requires-python = ">=3.11"
+keywords = ["computer-vision", "fire-detection", "fastapi", "smoke-detection", "yolo"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
   "numpy>=1.23,<3",
   "PyYAML==6.0.2",
@@ -20,10 +32,20 @@ inference = [
 ]
 backend = [
   "fastapi>=0.115,<1",
-  "httpx>=0.28,<1",
   "python-multipart>=0.0.20,<1",
   "uvicorn[standard]>=0.34,<1",
 ]
+test = [
+  "httpx>=0.28,<1",
+]
+
+[project.scripts]
+pyrovision-api = "pyrovision.api.__main__:main"
+
+[project.urls]
+Documentation = "https://github.com/SpunkySam-cyber/pyrovision/tree/main/docs"
+Issues = "https://github.com/SpunkySam-cyber/pyrovision/issues"
+Repository = "https://github.com/SpunkySam-cyber/pyrovision"
 
 [tool.setuptools.packages.find]
 where = ["src"]
