@@ -2,23 +2,33 @@
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .annotation import AnnotationStyle, annotate_frame
+from .annotation import AnnotationStyle
 from .errors import OutputMediaError
 from .model import DetectorEngine
 from .outputs import (
     AnnotatedVideoWriter,
     JsonlWriter,
     LiveDisplay,
+    allocate_output_stem,
+    validate_video_extension,
     write_json_atomic,
 )
 from .sources import WebcamReader
+from .streaming import (
+    close_resources,
+    combine_output_failures,
+    discard_empty_media,
+    failed_processing_result,
+    failure_message,
+    process_frames,
+    utc_now,
+)
 
 
 @dataclass(frozen=True)
@@ -94,14 +104,9 @@ class WebcamInferenceOutput:
         return {"success": self.summary.status != "failed", **self.summary.to_dict()}
 
 
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
 def _run_id(index: int, started_at: str) -> str:
-    compact_time = started_at.replace("-", "").replace(":", "")
-    compact_time = compact_time.replace("+0000", "Z").replace("+00:00", "Z")
-    return f"webcam_{index}_{compact_time.replace('.', '_')}"
+    timestamp = datetime.fromisoformat(started_at).astimezone(timezone.utc)
+    return f"webcam_{index}_{timestamp.strftime('%Y%m%dT%H%M%S_%fZ')}"
 
 
 def infer_webcam(
@@ -125,14 +130,20 @@ def infer_webcam(
     run_name: str | None = None,
 ) -> WebcamInferenceOutput:
     """Run webcam inference until a stop condition and close every resource."""
-    if frame_skip < 0:
-        raise ValueError("frame_skip cannot be negative")
+    if (
+        isinstance(frame_skip, bool)
+        or not isinstance(frame_skip, int)
+        or frame_skip < 0
+    ):
+        raise ValueError("frame_skip must be a non-negative integer")
     if max_frames is not None and (
         isinstance(max_frames, bool)
         or not isinstance(max_frames, int)
         or max_frames <= 0
     ):
         raise ValueError("max_frames must be a positive integer")
+    if record:
+        video_extension = validate_video_extension(video_extension)
 
     output_root = output_directory.resolve()
     try:
@@ -142,8 +153,17 @@ def infer_webcam(
             f"Cannot create output directory {output_root}: {exc}"
         ) from exc
 
-    started_at = _utc_now()
-    stem = run_name or _run_id(webcam_index, started_at)
+    started_at = utc_now()
+    requested_suffixes = ["_summary.json"]
+    if record:
+        requested_suffixes.append(f"_annotated{video_extension}")
+    if save_detections:
+        requested_suffixes.append("_detections.jsonl")
+    stem = allocate_output_stem(
+        output_root,
+        run_name or _run_id(webcam_index, started_at),
+        tuple(requested_suffixes),
+    )
     annotated_path = (
         output_root / f"{stem}_annotated{video_extension}" if record else None
     )
@@ -151,13 +171,6 @@ def infer_webcam(
         output_root / f"{stem}_detections.jsonl" if save_detections else None
     )
     summary_path = output_root / f"{stem}_summary.json"
-    status = "complete"
-    termination_reason = "unknown"
-    failure: Exception | None = None
-    frames_processed = 0
-    first_timestamp: float | None = None
-    last_timestamp: float | None = None
-    detection_counts: Counter[str] = Counter()
     video_writer: AnnotatedVideoWriter | None = None
     jsonl_writer: JsonlWriter | None = None
     live_display: Any | None = None
@@ -170,109 +183,98 @@ def infer_webcam(
         metadata = reader.metadata
         recording_fps = metadata.fps / (frame_skip + 1) if record else None
         try:
-            if annotated_path is not None:
-                video_writer = AnnotatedVideoWriter(
-                    annotated_path,
-                    codec=codec,
-                    fps=float(recording_fps),
-                    width=metadata.width,
-                    height=metadata.height,
-                    writer_factory=writer_factory,
-                )
-            if detections_path is not None:
-                jsonl_writer = JsonlWriter(detections_path)
-            if display:
-                factory = display_factory or LiveDisplay
-                live_display = factory(f"PyroVision Webcam {webcam_index}")
-
             try:
-                for source_frame in reader.frames(frame_skip=frame_skip):
-                    if stop_requested is not None and stop_requested():
-                        status = "interrupted"
-                        termination_reason = "stop_requested"
-                        break
-                    result = engine.predict_frame(
-                        source_frame.image,
-                        source=f"webcam:{webcam_index}",
-                        frame_index=source_frame.frame_index,
-                        timestamp_ms=source_frame.timestamp_ms,
+                if annotated_path is not None:
+                    video_writer = AnnotatedVideoWriter(
+                        annotated_path,
+                        codec=codec,
+                        fps=float(recording_fps),
+                        width=metadata.width,
+                        height=metadata.height,
+                        writer_factory=writer_factory,
                     )
-                    annotated = None
-                    if video_writer is not None or live_display is not None:
-                        annotated = annotate_frame(
-                            source_frame.image, result, style=annotation_style
-                        )
-                    if video_writer is not None:
-                        video_writer.write(annotated)
-                    if jsonl_writer is not None:
-                        jsonl_writer.write(
-                            {
-                                "record_type": "frame",
-                                "processed_index": frames_processed,
-                                **result.to_dict(),
-                            }
-                        )
-                    if first_timestamp is None:
-                        first_timestamp = result.timestamp_ms
-                    last_timestamp = result.timestamp_ms
-                    frames_processed += 1
-                    detection_counts.update(
-                        detection.class_name for detection in result.detections
-                    )
-                    if live_display is not None and live_display.show(annotated):
-                        termination_reason = "display_quit"
-                        break
-                    if max_frames is not None and frames_processed >= max_frames:
-                        termination_reason = "max_frames"
-                        break
-            except KeyboardInterrupt:
-                status = "interrupted"
-                termination_reason = "keyboard_interrupt"
+                if detections_path is not None:
+                    jsonl_writer = JsonlWriter(detections_path)
+                if display:
+                    factory = display_factory or LiveDisplay
+                    live_display = factory(f"PyroVision Webcam {webcam_index}")
+                processing = process_frames(
+                    engine,
+                    reader.frames(frame_skip=frame_skip),
+                    source=f"webcam:{webcam_index}",
+                    video_writer=video_writer,
+                    jsonl_writer=jsonl_writer,
+                    live_display=live_display,
+                    annotation_style=annotation_style,
+                    stop_requested=stop_requested,
+                    max_frames=max_frames,
+                )
             except Exception as exc:
-                status = "failed"
-                termination_reason = "error"
-                failure = exc
+                processing = failed_processing_result(engine, exc)
         finally:
-            if live_display is not None:
-                live_display.close()
-            if jsonl_writer is not None:
-                jsonl_writer.close()
-            if video_writer is not None:
-                video_writer.close()
+            cleanup_failure = close_resources(
+                live_display,
+                jsonl_writer,
+                video_writer,
+                reader,
+            )
 
         frames_written = video_writer.frames_written if video_writer is not None else 0
+        cleanup_failure = combine_output_failures(
+            cleanup_failure,
+            discard_empty_media(annotated_path, frames_written),
+        )
+        published_video = video_writer is not None and frames_written > 0
+        primary_failure = processing.failure
+        effective_failure = primary_failure or cleanup_failure
         summary = WebcamRunSummary(
-            status=status,
-            termination_reason=termination_reason,
-            error=str(failure) if failure is not None else None,
+            status="failed" if cleanup_failure is not None else processing.status,
+            termination_reason=(
+                "error"
+                if cleanup_failure is not None
+                else processing.termination_reason
+            ),
+            error=failure_message(primary_failure, cleanup_failure),
             webcam_index=metadata.index,
-            annotated_media=str(annotated_path) if annotated_path is not None else None,
-            detections_file=str(detections_path) if detections_path is not None else None,
+            annotated_media=(
+                str(annotated_path) if published_video else None
+            ),
+            detections_file=(
+                str(detections_path) if jsonl_writer is not None else None
+            ),
             summary_file=str(summary_path),
             checkpoint_sha256=engine.checkpoint.sha256,
             device=engine.device.value,
             display_enabled=display,
-            recording_enabled=record,
-            codec=codec if record else None,
+            recording_enabled=published_video,
+            codec=codec if published_video else None,
             width=metadata.width,
             height=metadata.height,
             capture_fps=metadata.fps,
             capture_fps_source=metadata.fps_source,
             recording_fps=recording_fps,
             frames_read=reader.frames_read,
-            frames_processed=frames_processed,
+            frames_processed=processing.frames_processed,
             frames_written=frames_written,
             frame_skip=frame_skip,
-            first_timestamp_ms=first_timestamp,
-            last_timestamp_ms=last_timestamp,
-            detections_total=sum(detection_counts.values()),
-            detections_per_class={
-                name: detection_counts.get(name, 0) for name in engine.class_names
-            },
+            first_timestamp_ms=processing.first_timestamp_ms,
+            last_timestamp_ms=processing.last_timestamp_ms,
+            detections_total=processing.detections_total,
+            detections_per_class=processing.detections_per_class,
             started_at_utc=started_at,
-            completed_at_utc=_utc_now(),
+            completed_at_utc=utc_now(),
         )
-        write_json_atomic(summary_path, summary.to_dict())
-        if failure is not None:
-            raise failure
+        try:
+            write_json_atomic(summary_path, summary.to_dict())
+        except Exception as summary_failure:
+            if effective_failure is not None:
+                raise OutputMediaError(
+                    f"{effective_failure}; additionally, could not write run "
+                    f"summary: {summary_failure}"
+                ) from effective_failure
+            raise
+        if effective_failure is not None:
+            if primary_failure is not None and cleanup_failure is not None:
+                primary_failure.add_note(str(cleanup_failure))
+            raise effective_failure
         return WebcamInferenceOutput(summary=summary)

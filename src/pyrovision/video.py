@@ -2,18 +2,31 @@
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .annotation import AnnotationStyle, annotate_frame
+from .annotation import AnnotationStyle
 from .errors import OutputMediaError
 from .model import DetectorEngine
-from .outputs import AnnotatedVideoWriter, JsonlWriter, write_json_atomic
+from .outputs import (
+    AnnotatedVideoWriter,
+    JsonlWriter,
+    allocate_output_stem,
+    validate_video_extension,
+    write_json_atomic,
+)
 from .sources import VideoReader
+from .streaming import (
+    close_resources,
+    combine_output_failures,
+    discard_empty_media,
+    failed_processing_result,
+    failure_message,
+    process_frames,
+    utc_now,
+)
 
 
 @dataclass(frozen=True)
@@ -84,10 +97,6 @@ class VideoInferenceOutput:
         return {"success": self.summary.status != "failed", **self.summary.to_dict()}
 
 
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
 def infer_video(
     engine: DetectorEngine,
     source: Path,
@@ -104,8 +113,14 @@ def infer_video(
     writer_factory: Any | None = None,
 ) -> VideoInferenceOutput:
     """Process a video sequentially and always close valid partial outputs."""
-    if frame_skip < 0:
-        raise ValueError("frame_skip cannot be negative")
+    if (
+        isinstance(frame_skip, bool)
+        or not isinstance(frame_skip, int)
+        or frame_skip < 0
+    ):
+        raise ValueError("frame_skip must be a non-negative integer")
+    if save_media:
+        video_extension = validate_video_extension(video_extension)
     output_root = output_directory.resolve()
     try:
         output_root.mkdir(parents=True, exist_ok=True)
@@ -113,7 +128,16 @@ def infer_video(
         raise OutputMediaError(f"Cannot create output directory {output_root}: {exc}") from exc
 
     source_path = source.resolve()
-    stem = source_path.stem
+    requested_suffixes = ["_summary.json"]
+    if save_media:
+        requested_suffixes.append(f"_annotated{video_extension}")
+    if save_detections:
+        requested_suffixes.append("_detections.jsonl")
+    stem = allocate_output_stem(
+        output_root,
+        source_path.stem,
+        tuple(requested_suffixes),
+    )
     annotated_path = (
         output_root / f"{stem}_annotated{video_extension}" if save_media else None
     )
@@ -121,14 +145,7 @@ def infer_video(
         output_root / f"{stem}_detections.jsonl" if save_detections else None
     )
     summary_path = output_root / f"{stem}_summary.json"
-    started_at = _utc_now()
-    status = "complete"
-    interruption_reason: str | None = None
-    failure: Exception | None = None
-    frames_processed = 0
-    first_timestamp: float | None = None
-    last_timestamp: float | None = None
-    detection_counts: Counter[str] = Counter()
+    started_at = utc_now()
     video_writer: AnnotatedVideoWriter | None = None
     jsonl_writer: JsonlWriter | None = None
 
@@ -136,93 +153,91 @@ def infer_video(
         metadata = reader.metadata
         output_fps = metadata.fps / (frame_skip + 1) if save_media else None
         try:
-            if annotated_path is not None:
-                video_writer = AnnotatedVideoWriter(
-                    annotated_path,
-                    codec=codec,
-                    fps=float(output_fps),
-                    width=metadata.width,
-                    height=metadata.height,
-                    writer_factory=writer_factory,
-                )
-            if detections_path is not None:
-                jsonl_writer = JsonlWriter(detections_path)
-
             try:
-                for source_frame in reader.frames(frame_skip=frame_skip):
-                    if stop_requested is not None and stop_requested():
-                        status = "interrupted"
-                        interruption_reason = "stop_requested"
-                        break
-                    result = engine.predict_frame(
-                        source_frame.image,
-                        source=str(source_path),
-                        frame_index=source_frame.frame_index,
-                        timestamp_ms=source_frame.timestamp_ms,
+                if annotated_path is not None:
+                    video_writer = AnnotatedVideoWriter(
+                        annotated_path,
+                        codec=codec,
+                        fps=float(output_fps),
+                        width=metadata.width,
+                        height=metadata.height,
+                        writer_factory=writer_factory,
                     )
-                    if video_writer is not None:
-                        annotated = annotate_frame(
-                            source_frame.image, result, style=annotation_style
-                        )
-                        video_writer.write(annotated)
-                    if jsonl_writer is not None:
-                        jsonl_writer.write(
-                            {
-                                "record_type": "frame",
-                                "processed_index": frames_processed,
-                                **result.to_dict(),
-                            }
-                        )
-                    if first_timestamp is None:
-                        first_timestamp = result.timestamp_ms
-                    last_timestamp = result.timestamp_ms
-                    frames_processed += 1
-                    detection_counts.update(
-                        detection.class_name for detection in result.detections
-                    )
-            except KeyboardInterrupt:
-                status = "interrupted"
-                interruption_reason = "keyboard_interrupt"
+                if detections_path is not None:
+                    jsonl_writer = JsonlWriter(detections_path)
+                processing = process_frames(
+                    engine,
+                    reader.frames(frame_skip=frame_skip),
+                    source=str(source_path),
+                    video_writer=video_writer,
+                    jsonl_writer=jsonl_writer,
+                    annotation_style=annotation_style,
+                    stop_requested=stop_requested,
+                    require_frames=True,
+                )
             except Exception as exc:
-                status = "failed"
-                failure = exc
+                processing = failed_processing_result(engine, exc)
         finally:
-            if jsonl_writer is not None:
-                jsonl_writer.close()
-            if video_writer is not None:
-                video_writer.close()
+            cleanup_failure = close_resources(
+                jsonl_writer,
+                video_writer,
+                reader,
+            )
 
         frames_written = video_writer.frames_written if video_writer is not None else 0
+        cleanup_failure = combine_output_failures(
+            cleanup_failure,
+            discard_empty_media(annotated_path, frames_written),
+        )
+        published_video = video_writer is not None and frames_written > 0
+        primary_failure = processing.failure
+        effective_failure = primary_failure or cleanup_failure
         summary = VideoRunSummary(
-            status=status,
-            interruption_reason=interruption_reason,
-            error=str(failure) if failure is not None else None,
+            status="failed" if cleanup_failure is not None else processing.status,
+            interruption_reason=(
+                processing.termination_reason
+                if processing.status == "interrupted"
+                else None
+            ),
+            error=failure_message(primary_failure, cleanup_failure),
             source=str(source_path),
-            annotated_media=str(annotated_path) if annotated_path is not None else None,
-            detections_file=str(detections_path) if detections_path is not None else None,
+            annotated_media=(
+                str(annotated_path) if published_video else None
+            ),
+            detections_file=(
+                str(detections_path) if jsonl_writer is not None else None
+            ),
             summary_file=str(summary_path),
             checkpoint_sha256=engine.checkpoint.sha256,
             device=engine.device.value,
-            codec=codec if save_media else None,
+            codec=codec if published_video else None,
             source_width=metadata.width,
             source_height=metadata.height,
             source_fps=metadata.fps,
             output_fps=output_fps,
             declared_source_frames=metadata.declared_frame_count,
             frames_read=reader.frames_read,
-            frames_processed=frames_processed,
+            frames_processed=processing.frames_processed,
             frames_written=frames_written,
             frame_skip=frame_skip,
-            first_timestamp_ms=first_timestamp,
-            last_timestamp_ms=last_timestamp,
-            detections_total=sum(detection_counts.values()),
-            detections_per_class={
-                name: detection_counts.get(name, 0) for name in engine.class_names
-            },
+            first_timestamp_ms=processing.first_timestamp_ms,
+            last_timestamp_ms=processing.last_timestamp_ms,
+            detections_total=processing.detections_total,
+            detections_per_class=processing.detections_per_class,
             started_at_utc=started_at,
-            completed_at_utc=_utc_now(),
+            completed_at_utc=utc_now(),
         )
-        write_json_atomic(summary_path, summary.to_dict())
-        if failure is not None:
-            raise failure
+        try:
+            write_json_atomic(summary_path, summary.to_dict())
+        except Exception as summary_failure:
+            if effective_failure is not None:
+                raise OutputMediaError(
+                    f"{effective_failure}; additionally, could not write run "
+                    f"summary: {summary_failure}"
+                ) from effective_failure
+            raise
+        if effective_failure is not None:
+            if primary_failure is not None and cleanup_failure is not None:
+                primary_failure.add_note(str(cleanup_failure))
+            raise effective_failure
         return VideoInferenceOutput(summary=summary)

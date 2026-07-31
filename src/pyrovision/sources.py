@@ -24,12 +24,14 @@ SUPPORTED_IMAGE_EXTENSIONS = {
     ".webp",
 }
 SUPPORTED_VIDEO_EXTENSIONS = {".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm"}
-MediaKind = Literal["image", "video"]
+MediaKind = Literal["image", "image_directory", "video"]
 
 
 def classify_media_path(path: Path) -> MediaKind:
     """Validate a local path and classify it without decoding model input."""
     resolved = path.resolve()
+    if resolved.is_dir():
+        return "image_directory"
     if not resolved.is_file():
         raise InputMediaError(f"Input media does not exist: {resolved}")
     extension = resolved.suffix.lower()
@@ -64,14 +66,29 @@ class VideoReader:
         if classify_media_path(source_path) != "video":
             raise InputMediaError(f"Input is not a supported video: {source_path}")
         factory = capture_factory or cv2.VideoCapture
-        self._capture = factory(str(source_path))
-        if not self._capture.isOpened():
-            self._capture.release()
+        try:
+            self._capture = factory(str(source_path))
+            opened = bool(self._capture.isOpened())
+        except Exception as exc:
+            raise InputMediaError(
+                f"OpenCV could not initialize video capture for {source_path}: {exc}"
+            ) from exc
+        if not opened:
+            try:
+                self._capture.release()
+            except Exception:
+                pass
             raise InputMediaError(f"OpenCV could not open video: {source_path}")
-        width = int(round(self._capture.get(cv2.CAP_PROP_FRAME_WIDTH)))
-        height = int(round(self._capture.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-        fps = float(self._capture.get(cv2.CAP_PROP_FPS))
-        frame_count = int(round(self._capture.get(cv2.CAP_PROP_FRAME_COUNT)))
+        try:
+            width = int(round(self._capture.get(cv2.CAP_PROP_FRAME_WIDTH)))
+            height = int(round(self._capture.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+            fps = float(self._capture.get(cv2.CAP_PROP_FPS))
+            frame_count = int(round(self._capture.get(cv2.CAP_PROP_FRAME_COUNT)))
+        except Exception as exc:
+            self._capture.release()
+            raise InputMediaError(
+                f"Cannot read video metadata from {source_path}: {exc}"
+            ) from exc
         if width <= 0 or height <= 0:
             self._capture.release()
             raise InputMediaError(f"Video reports invalid dimensions: {width}x{height}")
@@ -92,18 +109,30 @@ class VideoReader:
 
     def _timestamp(self, frame_index: int) -> float:
         """Use container time when monotonic, otherwise reconstruct from FPS."""
-        reported = float(self._capture.get(cv2.CAP_PROP_POS_MSEC))
+        try:
+            reported = float(self._capture.get(cv2.CAP_PROP_POS_MSEC))
+        except Exception:
+            reported = float("nan")
         fallback = frame_index * 1000.0 / self.metadata.fps
-        if not math.isfinite(reported) or reported < 0:
-            return fallback
-        if frame_index > 0 and reported <= self._last_timestamp_ms:
-            return fallback
-        return reported
+        candidate = reported
+        if not math.isfinite(candidate) or candidate < 0:
+            candidate = fallback
+        if frame_index > 0 and candidate <= self._last_timestamp_ms:
+            candidate = max(
+                fallback,
+                self._last_timestamp_ms + 1000.0 / self.metadata.fps,
+            )
+        return candidate
 
     def read(self) -> SourceFrame | None:
         if self._closed:
             return None
-        success, image = self._capture.read()
+        try:
+            success, image = self._capture.read()
+        except Exception as exc:
+            raise InputMediaError(
+                f"Video decoding failed at frame {self._next_index}: {exc}"
+            ) from exc
         if not success:
             return None
         if not isinstance(image, np.ndarray) or image.size == 0:
@@ -118,8 +147,12 @@ class VideoReader:
         return SourceFrame(frame_index, timestamp_ms, image)
 
     def frames(self, frame_skip: int = 0) -> Iterator[SourceFrame]:
-        if frame_skip < 0:
-            raise ValueError("frame_skip cannot be negative")
+        if (
+            isinstance(frame_skip, bool)
+            or not isinstance(frame_skip, int)
+            or frame_skip < 0
+        ):
+            raise ValueError("frame_skip must be a non-negative integer")
         stride = frame_skip + 1
         while True:
             frame = self.read()
@@ -173,9 +206,18 @@ class WebcamReader:
             raise ValueError("max_read_attempts must be a positive integer")
 
         factory = capture_factory or cv2.VideoCapture
-        self._capture = factory(index)
-        if not self._capture.isOpened():
-            self._capture.release()
+        try:
+            self._capture = factory(index)
+            opened = bool(self._capture.isOpened())
+        except Exception as exc:
+            raise InputMediaError(
+                f"OpenCV could not initialize webcam index {index}: {exc}"
+            ) from exc
+        if not opened:
+            try:
+                self._capture.release()
+            except Exception:
+                pass
             raise InputMediaError(
                 f"OpenCV could not open webcam index {index}; verify the index, "
                 "camera permissions, and that no other application is using it"
@@ -188,9 +230,13 @@ class WebcamReader:
         self.frames_read = 0
         self._next_index = 0
         self._pending_frame = self._read_initial_frame(index)
+        self._last_timestamp_ms = -1.0
         height, width = self._pending_frame.shape[:2]
 
-        reported_fps = float(self._capture.get(cv2.CAP_PROP_FPS))
+        try:
+            reported_fps = float(self._capture.get(cv2.CAP_PROP_FPS))
+        except Exception:
+            reported_fps = 0.0
         if math.isfinite(reported_fps) and reported_fps > 0:
             fps = reported_fps
             fps_source: Literal["camera", "fallback"] = "camera"
@@ -200,24 +246,36 @@ class WebcamReader:
         self.metadata = WebcamMetadata(index, width, height, fps, fps_source)
 
     def _read_initial_frame(self, index: int) -> np.ndarray:
+        last_error: Exception | None = None
         for _ in range(self._max_read_attempts):
-            success, image = self._capture.read()
+            try:
+                success, image = self._capture.read()
+            except Exception as exc:
+                last_error = exc
+                continue
             if success and isinstance(image, np.ndarray) and image.size > 0:
                 return image
         self._capture.release()
         self._closed = True
+        detail = f": {last_error}" if last_error is not None else ""
         raise InputMediaError(
-            f"Webcam index {index} opened but did not return a valid frame"
+            f"Webcam index {index} opened but did not return a valid frame{detail}"
         )
 
     def _capture_frame(self) -> np.ndarray:
+        last_error: Exception | None = None
         for _ in range(self._max_read_attempts):
-            success, image = self._capture.read()
+            try:
+                success, image = self._capture.read()
+            except Exception as exc:
+                last_error = exc
+                continue
             if success and isinstance(image, np.ndarray) and image.size > 0:
                 return image
+        detail = f": {last_error}" if last_error is not None else ""
         raise InputMediaError(
             f"Webcam index {self.metadata.index} failed to return a valid frame "
-            f"after {self._max_read_attempts} attempts"
+            f"after {self._max_read_attempts} attempts{detail}"
         )
 
     def read(self) -> SourceFrame | None:
@@ -236,14 +294,24 @@ class WebcamReader:
                 f"{self.metadata.width}x{self.metadata.height}"
             )
         frame_index = self._next_index
-        elapsed_ms = max(0.0, (float(self._clock()) - self._started_at) * 1000.0)
+        elapsed_ms = (float(self._clock()) - self._started_at) * 1000.0
+        if not math.isfinite(elapsed_ms):
+            raise InputMediaError("Webcam clock returned a non-finite timestamp")
+        elapsed_ms = max(0.0, elapsed_ms)
+        if elapsed_ms <= self._last_timestamp_ms:
+            elapsed_ms = self._last_timestamp_ms + 0.001
+        self._last_timestamp_ms = elapsed_ms
         self._next_index += 1
         self.frames_read += 1
         return SourceFrame(frame_index, elapsed_ms, image)
 
     def frames(self, frame_skip: int = 0) -> Iterator[SourceFrame]:
-        if frame_skip < 0:
-            raise ValueError("frame_skip cannot be negative")
+        if (
+            isinstance(frame_skip, bool)
+            or not isinstance(frame_skip, int)
+            or frame_skip < 0
+        ):
+            raise ValueError("frame_skip must be a non-negative integer")
         stride = frame_skip + 1
         while True:
             frame = self.read()

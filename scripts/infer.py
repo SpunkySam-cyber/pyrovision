@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -13,12 +14,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from pyrovision.config import load_inference_config  # noqa: E402
-from pyrovision.errors import PyroVisionError  # noqa: E402
-from pyrovision.images import infer_image  # noqa: E402
+from pyrovision.errors import ConfigurationError, PyroVisionError  # noqa: E402
+from pyrovision.images import infer_image, infer_image_directory  # noqa: E402
 from pyrovision.model import DetectorEngine  # noqa: E402
 from pyrovision.sources import classify_media_path  # noqa: E402
 from pyrovision.video import infer_video  # noqa: E402
 from pyrovision.webcam import infer_webcam  # noqa: E402
+
+
+LOGGER = logging.getLogger("pyrovision.cli")
 
 
 def class_threshold(value: str) -> tuple[str, float]:
@@ -71,6 +75,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=PROJECT_ROOT / "configs" / "inference.yaml",
     )
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument(
+        "--log-level",
+        choices=("DEBUG", "INFO", "WARNING", "ERROR"),
+        default="WARNING",
+        type=str.upper,
+    )
     parser.add_argument("--device", help="auto, cpu, cuda, or cuda:N")
     parser.add_argument("--confidence", type=float)
     parser.add_argument(
@@ -108,8 +118,20 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def validate_mode_arguments(args: argparse.Namespace) -> bool:
+    """Validate cross-argument mode rules and return webcam selection."""
+    webcam_requested = hasattr(args, "webcam")
+    if not webcam_requested and args.max_frames is not None:
+        raise ConfigurationError("--max-frames can only be used with --webcam")
+    return webcam_requested
+
+
 def main() -> int:
     args = build_parser().parse_args()
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format="[%(levelname)s] %(name)s: %(message)s",
+    )
     try:
         config_path = (
             args.config.resolve()
@@ -167,12 +189,13 @@ def main() -> int:
             config, model=model_config, output=output_config, input=input_config
         )
 
-        webcam_requested = hasattr(args, "webcam")
+        webcam_requested = validate_mode_arguments(args)
         if webcam_requested:
             webcam_index = (
                 config.input.webcam_index if args.webcam is None else args.webcam
             )
             engine = DetectorEngine.from_config(config)
+            LOGGER.info("Starting webcam inference on index %d", webcam_index)
             output = infer_webcam(
                 engine,
                 webcam_index,
@@ -198,6 +221,7 @@ def main() -> int:
             media_kind = classify_media_path(source)
             engine = DetectorEngine.from_config(config)
             if media_kind == "image":
+                LOGGER.info("Starting image inference for %s", source)
                 output = infer_image(
                     engine,
                     source,
@@ -205,7 +229,17 @@ def main() -> int:
                     save_media=config.output.save_media,
                     save_detections=config.output.save_detections,
                 )
+            elif media_kind == "image_directory":
+                LOGGER.info("Starting image-directory inference for %s", source)
+                output = infer_image_directory(
+                    engine,
+                    source,
+                    output_directory=config.output.directory,
+                    save_media=config.output.save_media,
+                    save_detections=config.output.save_detections,
+                )
             else:
+                LOGGER.info("Starting video inference for %s", source)
                 output = infer_video(
                     engine,
                     source,
@@ -218,15 +252,52 @@ def main() -> int:
                 )
             mode = media_kind
         print(json.dumps(output.to_dict(), indent=2))
+        LOGGER.info("Inference completed successfully in %s mode", mode)
         if mode in {"video", "webcam"} and output.summary.status == "interrupted":
             return 130
         return 0
     except (PyroVisionError, OSError, ValueError) as exc:
+        LOGGER.debug("Expected inference failure", exc_info=True)
         print(
-            json.dumps({"success": False, "error": str(exc)}, indent=2),
+            json.dumps(
+                {
+                    "success": False,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                },
+                indent=2,
+            ),
             file=sys.stderr,
         )
         return 2
+    except KeyboardInterrupt:
+        print(
+            json.dumps(
+                {
+                    "success": False,
+                    "error_type": "KeyboardInterrupt",
+                    "error": "Inference interrupted by user",
+                },
+                indent=2,
+            ),
+            file=sys.stderr,
+        )
+        return 130
+    except Exception as exc:
+        LOGGER.exception("Unexpected inference failure")
+        print(
+            json.dumps(
+                {
+                    "success": False,
+                    "error_type": type(exc).__name__,
+                    "error": "Unexpected inference failure; rerun with "
+                    "--log-level DEBUG for details",
+                },
+                indent=2,
+            ),
+            file=sys.stderr,
+        )
+        return 3
 
 
 if __name__ == "__main__":
