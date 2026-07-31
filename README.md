@@ -151,7 +151,7 @@ and Git-ignored with the run directory.
 
 ## Step 4 — local real-time inference
 
-Status: **Milestone 2 image inference complete; video/webcam inference not yet
+Status: **Milestone 3 video inference complete; webcam inference not yet
 implemented.**
 
 The reusable package now lives under `src/pyrovision/`. Its versioned inference
@@ -207,7 +207,38 @@ The command writes `<stem>_annotated.<ext>` and `<stem>_detections.json` under
 the configured ignored output directory. CPU FP32 and CUDA FP16 inference were
 both verified on a training-split smoke-and-fire image with consistent objects.
 
-All 19 tests currently pass: the original six Step 1–3 tests, seven foundation
-tests, and six image-inference tests. See `docs/inference.md` for the full
-architecture and verification record. Milestone 3 will add video inference;
-it has not started.
+Milestone 3 extends the same command to supported local videos:
+
+```powershell
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\video.mp4
+```
+
+Video output contains:
+
+```text
+outputs/inference/
+  video_annotated.mp4
+  video_detections.jsonl
+  video_summary.json
+```
+
+Each JSONL line retains the original frame index and timestamp. Frame skipping
+is optional; when enabled, output FPS is divided by the processing stride so
+playback duration remains correct:
+
+```powershell
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\video.mp4 `
+  --frame-skip 1
+```
+
+The default Windows codec/container is `mp4v`/`.mp4`. An explicit alternative
+can be requested with `--codec MJPG --video-extension .avi`. Writer creation is
+validated before processing.
+
+All 25 tests currently pass. Real CUDA video inference retained and decoded all
+12 development frames, wrote 12 ordered JSONL records, and produced a matching
+summary. Graceful callback and Ctrl+C interruption paths retain valid partial
+outputs. See `docs/inference.md` and `metrics/step4_milestone3.json` for the full
+record. Milestone 4 webcam work has not started.

@@ -198,3 +198,30 @@ Status: **Milestone 1 complete; stopped before Milestone 2**
   `metrics/step4_milestone2.json`.
 - Milestone gate: accepted. Video inference remains unimplemented pending
   Milestone 3 authorization.
+
+### 2026-07-31 Milestone 3 — video inference
+
+- Added supported-media classification and sequential OpenCV video decoding.
+- Preserved original source frame indices and monotonic timestamps, with an FPS
+  fallback for missing or unreliable container timestamps.
+- Added optional frame skipping while adjusting output FPS to preserve playback
+  duration.
+- Added validated annotated video writing with explicit codec/container policy.
+- Added interruption-safe, per-frame JSONL detection records and atomic run
+  summaries.
+- Added programmatic stop and Ctrl+C handling; both retain decodable partial
+  videos, valid complete JSONL lines, released resources, and an interrupted
+  summary.
+- Shared the atomic JSON serializer between image and video outputs.
+- Added six video tests. All 25 project tests pass.
+- Built a 12-frame development MP4 from four processed training images covering
+  negative, smoke, fire, and combined categories; the held-out test set was not
+  used.
+- Real CUDA FP16 inference processed and wrote all 12 frames in order at
+  640×360/4 FPS using the default `mp4v`/MP4 path.
+- Verified 12 output frames decode, 12 JSONL records parse, timestamps span
+  0–2750 ms, and summary counts match 6 smoke and 12 fire detections.
+- Local video/media/log outputs remain ignored. Machine-readable verification
+  is versioned in `metrics/step4_milestone3.json`.
+- Milestone gate: accepted. Webcam inference remains unimplemented pending
+  Milestone 4 authorization.

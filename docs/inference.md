@@ -1,6 +1,6 @@
 # Step 4 — local inference
 
-Status: **Milestone 2 image inference complete**
+Status: **Milestone 3 video inference complete**
 
 Milestone 1 establishes the reusable boundary that later image, video, webcam,
 and FastAPI adapters will share. It does not run detection or write annotated
@@ -20,6 +20,9 @@ src/pyrovision/
   model.py          Verified YOLO loading and frame detection engine
   annotation.py     OpenCV boxes, labels, confidence, and colors
   images.py         Image decode, orchestration, persistence, and JSON output
+  sources.py        Media classification and ordered video decoding
+  outputs.py        Validated video writer, JSONL sink, atomic JSON summaries
+  video.py          Video frame pipeline, interruption handling, run summaries
 ```
 
 The package never imports `scripts/train.py`. The training runner imports only
@@ -204,7 +207,118 @@ is versioned at `metrics/step4_milestone2.json`.
 Detailed latency and FPS are intentionally not reported yet; those measurements
 belong to Milestone 5 after the video pipeline exists.
 
-Milestone 3 will add ordered video decoding, frame processing, annotated video
-writing, JSONL records, summaries, codec checks, and graceful interruption.
-Video, webcam, performance instrumentation, backend work, and deployment remain
-out of scope at this gate.
+## Milestone 3 — video inference
+
+The image CLI now classifies supported local paths before model loading and
+routes videos through the ordered video pipeline:
+
+```powershell
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\video.mp4
+```
+
+Supported video extensions are AVI, M4V, MKV, MOV, MP4, and WebM, subject to the
+codecs available in the local OpenCV build.
+
+### Source and frame contract
+
+`VideoReader` validates container opening, dimensions, and FPS. Every yielded
+frame includes:
+
+- The original zero-based source frame index
+- The container timestamp when it is valid and monotonic
+- A deterministic `frame_index / source_fps` fallback timestamp
+- The decoded BGR frame
+
+Frame order is never parallelized or reordered. With `frame_skip: N`, every
+`N + 1` frame is processed while skipped frames are still decoded and counted.
+The annotated output FPS is divided by `N + 1`, preserving approximately the
+same playback duration instead of accelerating the output.
+
+### Outputs
+
+For `video.mp4`, the default run writes:
+
+```text
+outputs/inference/
+  video_annotated.mp4
+  video_detections.jsonl
+  video_summary.json
+```
+
+Each JSONL line is flushed immediately and contains `processed_index`, original
+`frame_index`, timestamp, dimensions, and the stable detection list. This keeps
+every complete record readable after an interruption.
+
+The summary records completion/interruption status, checkpoint, device, codec,
+input/output FPS, dimensions, source/read/processed/written frame counts,
+timestamp range, frame skipping, and total/per-class detections. Detailed stage
+timings are intentionally deferred to Milestone 5.
+
+### Codec handling
+
+The configured default is `mp4v` with `.mp4`. `VideoWriter.isOpened()` is
+checked before any frame is processed, and failures recommend known Windows
+fallbacks. The CLI can override both values:
+
+```powershell
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --source path\to\video.mp4 `
+  --codec MJPG `
+  --video-extension .avi
+```
+
+Verification covered real `mp4v`/MP4 writing, automated MJPG/AVI writing, and a
+forced writer-open failure. GStreamer remains unavailable and H.264 writing is
+not assumed.
+
+### Graceful interruption
+
+The pipeline supports both a programmatic stop callback and Ctrl+C. In either
+case it:
+
+1. Stops before beginning another inference.
+2. Flushes and closes JSONL.
+3. Finalizes and closes the partial video.
+4. Releases the input capture.
+5. Writes a summary with status `interrupted` and the reason.
+
+The CLI returns exit code 130 for an interrupted video run. Automated tests
+decode the partial output video and parse every retained JSONL line.
+
+### Real video verification
+
+No external video was present, so the reproducible development clip was built
+from four processed training images: negative, smoke, fire, and smoke+fire. No
+held-out test image was used.
+
+| Property | Result |
+| --- | --- |
+| Input/output | 640×360, 4 FPS, MP4V/MP4 |
+| Device | RTX 4050 `cuda:0`, FP16 |
+| Frames read/processed/written | 12 / 12 / 12 |
+| Output frames declared/decoded | 12 / 12 |
+| JSONL records | 12 |
+| Timestamp range | 0–2750 ms in 250 ms steps |
+| Smoke/fire detections | 6 / 12 |
+| Frame detection counts | `0,0,0,1,1,1,1,1,1,4,4,4` |
+
+The negative segment remained empty, followed by consistent smoke, fire, and
+combined segments. Local source and generated outputs remain ignored. The
+machine-readable result is `metrics/step4_milestone3.json`.
+
+### Milestone 3 verification
+
+- Existing tests before Milestone 3: 19 passed
+- New video tests: 6 passed
+- Total: 25 passed
+- Ordered frame/timestamp handling: passed
+- Full video/JSONL/summary creation: passed
+- MP4V/MP4 and MJPG/AVI writing: passed
+- Codec-open failure handling: passed
+- Stop callback and Ctrl+C partial-output handling: passed
+- Real annotated output decode: 12/12 frames
+
+Milestone 4 will add webcam index parsing, optional live display, camera failure
+handling, and long-running resource validation. Webcam, performance
+instrumentation, backend work, and deployment remain out of scope at this gate.
