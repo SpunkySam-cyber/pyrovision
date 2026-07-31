@@ -1,4 +1,4 @@
-"""Run local PyroVision inference on an image or video."""
+"""Run local PyroVision inference on an image, video, or webcam."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from pyrovision.images import infer_image  # noqa: E402
 from pyrovision.model import DetectorEngine  # noqa: E402
 from pyrovision.sources import classify_media_path  # noqa: E402
 from pyrovision.video import infer_video  # noqa: E402
+from pyrovision.webcam import infer_webcam  # noqa: E402
 
 
 def class_threshold(value: str) -> tuple[str, float]:
@@ -34,9 +35,36 @@ def class_threshold(value: str) -> tuple[str, float]:
     return class_name.strip(), threshold
 
 
+def non_negative_integer(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("value must be an integer") from exc
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("value cannot be negative")
+    return parsed
+
+
+def positive_integer(value: str) -> int:
+    parsed = non_negative_integer(value)
+    if parsed == 0:
+        raise argparse.ArgumentTypeError("value must be positive")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path, help="Input image or video path")
+    source_group = parser.add_mutually_exclusive_group()
+    source_group.add_argument("--source", type=Path, help="Input image or video path")
+    source_group.add_argument(
+        "--webcam",
+        nargs="?",
+        type=non_negative_integer,
+        const=None,
+        default=argparse.SUPPRESS,
+        metavar="INDEX",
+        help="Use a webcam; omit INDEX to use input.webcam_index",
+    )
     parser.add_argument(
         "--config",
         type=Path,
@@ -53,16 +81,29 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="CLASS=CONFIDENCE",
     )
     parser.add_argument("--iou", type=float)
-    parser.add_argument("--frame-skip", type=int)
+    parser.add_argument("--frame-skip", type=non_negative_integer)
+    parser.add_argument(
+        "--max-frames",
+        type=positive_integer,
+        help="Stop a webcam run after this many processed frames",
+    )
     parser.add_argument("--codec", help="Four-character OpenCV video codec")
     parser.add_argument(
         "--video-extension", choices=(".avi", ".mkv", ".mov", ".mp4")
     )
     parser.add_argument(
-        "--save-media", action=argparse.BooleanOptionalAction, default=None
+        "--save-media",
+        "--record",
+        dest="save_media",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Save annotated image/video or record the webcam session",
     )
     parser.add_argument(
         "--save-detections", action=argparse.BooleanOptionalAction, default=None
+    )
+    parser.add_argument(
+        "--display", action=argparse.BooleanOptionalAction, default=None
     )
     return parser
 
@@ -111,6 +152,8 @@ def main() -> int:
             output_config = replace(
                 output_config, save_detections=args.save_detections
             )
+        if args.display is not None:
+            output_config = replace(output_config, display=args.display)
         if args.codec is not None:
             output_config = replace(output_config, video_codec=args.codec)
         if args.video_extension is not None:
@@ -124,36 +167,58 @@ def main() -> int:
             config, model=model_config, output=output_config, input=input_config
         )
 
-        configured_source = args.source or config.input.source
-        if configured_source is None:
-            raise ValueError("An image source is required through --source or input.source")
-        source = Path(configured_source)
-        if not source.is_absolute():
-            source = PROJECT_ROOT / source
-
-        media_kind = classify_media_path(source)
-        engine = DetectorEngine.from_config(config)
-        if media_kind == "image":
-            output = infer_image(
-                engine,
-                source,
-                output_directory=config.output.directory,
-                save_media=config.output.save_media,
-                save_detections=config.output.save_detections,
+        webcam_requested = hasattr(args, "webcam")
+        if webcam_requested:
+            webcam_index = (
+                config.input.webcam_index if args.webcam is None else args.webcam
             )
-        else:
-            output = infer_video(
+            engine = DetectorEngine.from_config(config)
+            output = infer_webcam(
                 engine,
-                source,
+                webcam_index,
                 output_directory=config.output.directory,
                 frame_skip=config.input.frame_skip,
-                save_media=config.output.save_media,
+                record=config.output.save_media,
                 save_detections=config.output.save_detections,
+                display=config.output.display,
                 codec=config.output.video_codec,
                 video_extension=config.output.video_extension,
+                max_frames=args.max_frames,
             )
+            mode = "webcam"
+        else:
+            configured_source = args.source or config.input.source
+            if configured_source is None:
+                raise ValueError(
+                    "An input is required through --source, input.source, or --webcam"
+                )
+            source = Path(configured_source)
+            if not source.is_absolute():
+                source = PROJECT_ROOT / source
+            media_kind = classify_media_path(source)
+            engine = DetectorEngine.from_config(config)
+            if media_kind == "image":
+                output = infer_image(
+                    engine,
+                    source,
+                    output_directory=config.output.directory,
+                    save_media=config.output.save_media,
+                    save_detections=config.output.save_detections,
+                )
+            else:
+                output = infer_video(
+                    engine,
+                    source,
+                    output_directory=config.output.directory,
+                    frame_skip=config.input.frame_skip,
+                    save_media=config.output.save_media,
+                    save_detections=config.output.save_detections,
+                    codec=config.output.video_codec,
+                    video_extension=config.output.video_extension,
+                )
+            mode = media_kind
         print(json.dumps(output.to_dict(), indent=2))
-        if media_kind == "video" and output.summary.status == "interrupted":
+        if mode in {"video", "webcam"} and output.summary.status == "interrupted":
             return 130
         return 0
     except (PyroVisionError, OSError, ValueError) as exc:

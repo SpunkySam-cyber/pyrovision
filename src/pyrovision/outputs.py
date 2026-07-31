@@ -93,6 +93,48 @@ class JsonlWriter:
             self._closed = True
 
 
+class LiveDisplay:
+    """Small OpenCV display adapter with an explicit stop-key contract."""
+
+    def __init__(
+        self,
+        window_name: str = "PyroVision Webcam",
+        *,
+        wait_key_delay_ms: int = 1,
+    ) -> None:
+        if wait_key_delay_ms < 1:
+            raise ValueError("wait_key_delay_ms must be positive")
+        self.window_name = window_name
+        self.wait_key_delay_ms = wait_key_delay_ms
+        self._shown = False
+        self._closed = False
+
+    def show(self, frame: np.ndarray) -> bool:
+        """Show one frame and return true when Q or Escape requests shutdown."""
+        if self._closed:
+            raise OutputMediaError("Cannot show a frame on a closed display")
+        try:
+            cv2.imshow(self.window_name, frame)
+            self._shown = True
+            key = cv2.waitKey(self.wait_key_delay_ms) & 0xFF
+        except cv2.error as exc:
+            raise OutputMediaError(
+                "OpenCV could not create the live display; use --no-display "
+                "in headless environments"
+            ) from exc
+        return key in (ord("q"), ord("Q"), 27)
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        if self._shown:
+            try:
+                cv2.destroyWindow(self.window_name)
+            except cv2.error:
+                pass
+        self._closed = True
+
+
 def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     try:
