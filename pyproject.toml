@@ -17,6 +17,11 @@ inference = [
   "ultralytics==8.4.37",
   "opencv-python>=4.10,<6",
 ]
+backend = [
+  "fastapi>=0.115,<1",
+  "python-multipart>=0.0.20,<1",
+  "uvicorn[standard]>=0.34,<1",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
