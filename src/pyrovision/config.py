@@ -126,6 +126,7 @@ class OutputConfig:
     save_detections: bool = True
     display: bool = False
     video_codec: str = "mp4v"
+    video_extension: str = ".mp4"
 
     def __post_init__(self) -> None:
         if not isinstance(self.directory, Path) or not str(self.directory):
@@ -139,6 +140,15 @@ class OutputConfig:
             or not self.video_codec.isascii()
         ):
             raise ConfigurationError("output.video_codec must be a four-character ASCII code")
+        if (
+            not isinstance(self.video_extension, str)
+            or not self.video_extension.startswith(".")
+            or self.video_extension.lower() not in {".avi", ".mkv", ".mov", ".mp4"}
+        ):
+            raise ConfigurationError(
+                "output.video_extension must be .avi, .mkv, .mov, or .mp4"
+            )
+        object.__setattr__(self, "video_extension", self.video_extension.lower())
 
 
 @dataclass(frozen=True)
@@ -280,7 +290,14 @@ def load_inference_config(
     output_values = _mapping(values.get("output"), "output")
     _reject_unknown(
         output_values,
-        {"directory", "save_media", "save_detections", "display", "video_codec"},
+        {
+            "directory",
+            "save_media",
+            "save_detections",
+            "display",
+            "video_codec",
+            "video_extension",
+        },
         "output",
     )
     output = OutputConfig(
@@ -289,6 +306,7 @@ def load_inference_config(
         save_detections=output_values.get("save_detections", True),
         display=output_values.get("display", False),
         video_codec=output_values.get("video_codec", "mp4v"),
+        video_extension=output_values.get("video_extension", ".mp4"),
     )
 
     configured_device = values.get("device", "auto")

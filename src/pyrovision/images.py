@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,18 +12,9 @@ import numpy as np
 from .annotation import AnnotationStyle, annotate_frame
 from .errors import InputMediaError, OutputMediaError
 from .model import DetectorEngine
+from .outputs import write_json_atomic
+from .sources import SUPPORTED_IMAGE_EXTENSIONS
 from .types import FrameResult
-
-
-SUPPORTED_IMAGE_EXTENSIONS = {
-    ".bmp",
-    ".jpeg",
-    ".jpg",
-    ".png",
-    ".tif",
-    ".tiff",
-    ".webp",
-}
 
 
 @dataclass(frozen=True)
@@ -52,16 +41,6 @@ class ImageInferenceOutput:
             ),
             "result": self.result.to_dict(),
         }
-
-
-def _write_json(path: Path, value: dict[str, Any]) -> None:
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    try:
-        temporary.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-        os.replace(temporary, path)
-    except OSError as exc:
-        temporary.unlink(missing_ok=True)
-        raise OutputMediaError(f"Cannot write detection output {path}: {exc}") from exc
 
 
 def infer_image(
@@ -122,5 +101,5 @@ def infer_image(
         device=engine.device.value,
     )
     if detections_path is not None:
-        _write_json(detections_path, output.to_dict())
+        write_json_atomic(detections_path, output.to_dict())
     return output

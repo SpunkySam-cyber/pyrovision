@@ -36,3 +36,4 @@ output:
   save_detections: true
   display: false
   video_codec: mp4v
+  video_extension: .mp4

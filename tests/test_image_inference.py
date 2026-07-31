@@ -139,10 +139,16 @@ class ImageInferenceTest(unittest.TestCase):
                 "0.4",
                 "--class-threshold",
                 "fire=0.3",
+                "--frame-skip",
+                "2",
+                "--codec",
+                "MJPG",
             ]
         )
         self.assertEqual(arguments.confidence, 0.4)
         self.assertEqual(arguments.class_threshold, [("fire", 0.3)])
+        self.assertEqual(arguments.frame_skip, 2)
+        self.assertEqual(arguments.codec, "MJPG")
 
     def test_engine_applies_class_thresholds_and_stable_sorting(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

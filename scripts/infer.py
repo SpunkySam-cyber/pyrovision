@@ -1,4 +1,4 @@
-"""Run local PyroVision inference on a still image."""
+"""Run local PyroVision inference on an image or video."""
 
 from __future__ import annotations
 
@@ -16,6 +16,8 @@ from pyrovision.config import load_inference_config  # noqa: E402
 from pyrovision.errors import PyroVisionError  # noqa: E402
 from pyrovision.images import infer_image  # noqa: E402
 from pyrovision.model import DetectorEngine  # noqa: E402
+from pyrovision.sources import classify_media_path  # noqa: E402
+from pyrovision.video import infer_video  # noqa: E402
 
 
 def class_threshold(value: str) -> tuple[str, float]:
@@ -34,7 +36,7 @@ def class_threshold(value: str) -> tuple[str, float]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path, help="Input image path")
+    parser.add_argument("--source", type=Path, help="Input image or video path")
     parser.add_argument(
         "--config",
         type=Path,
@@ -51,6 +53,11 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="CLASS=CONFIDENCE",
     )
     parser.add_argument("--iou", type=float)
+    parser.add_argument("--frame-skip", type=int)
+    parser.add_argument("--codec", help="Four-character OpenCV video codec")
+    parser.add_argument(
+        "--video-extension", choices=(".avi", ".mkv", ".mov", ".mp4")
+    )
     parser.add_argument(
         "--save-media", action=argparse.BooleanOptionalAction, default=None
     )
@@ -104,7 +111,18 @@ def main() -> int:
             output_config = replace(
                 output_config, save_detections=args.save_detections
             )
-        config = replace(config, model=model_config, output=output_config)
+        if args.codec is not None:
+            output_config = replace(output_config, video_codec=args.codec)
+        if args.video_extension is not None:
+            output_config = replace(
+                output_config, video_extension=args.video_extension
+            )
+        input_config = config.input
+        if args.frame_skip is not None:
+            input_config = replace(input_config, frame_skip=args.frame_skip)
+        config = replace(
+            config, model=model_config, output=output_config, input=input_config
+        )
 
         configured_source = args.source or config.input.source
         if configured_source is None:
@@ -113,15 +131,30 @@ def main() -> int:
         if not source.is_absolute():
             source = PROJECT_ROOT / source
 
+        media_kind = classify_media_path(source)
         engine = DetectorEngine.from_config(config)
-        output = infer_image(
-            engine,
-            source,
-            output_directory=config.output.directory,
-            save_media=config.output.save_media,
-            save_detections=config.output.save_detections,
-        )
+        if media_kind == "image":
+            output = infer_image(
+                engine,
+                source,
+                output_directory=config.output.directory,
+                save_media=config.output.save_media,
+                save_detections=config.output.save_detections,
+            )
+        else:
+            output = infer_video(
+                engine,
+                source,
+                output_directory=config.output.directory,
+                frame_skip=config.input.frame_skip,
+                save_media=config.output.save_media,
+                save_detections=config.output.save_detections,
+                codec=config.output.video_codec,
+                video_extension=config.output.video_extension,
+            )
         print(json.dumps(output.to_dict(), indent=2))
+        if media_kind == "video" and output.summary.status == "interrupted":
+            return 130
         return 0
     except (PyroVisionError, OSError, ValueError) as exc:
         print(

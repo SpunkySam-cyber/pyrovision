@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "milestone": "Step 4 Milestone 3 - video inference",
+  "status": "complete",
+  "verified_on": "2026-07-31",
+  "checkpoint": {
+    "epoch": 54,
+    "sha256": "21812ec7917bda5ad004fc085ba6a9d8ee1b375c95db2efe754463fc430d28c3",
+    "classes": [
+      "smoke",
+      "fire"
+    ]
+  },
+  "verification_source": {
+    "path": "media/dev/milestone3_train_sequence.mp4",
+    "generated_from_processed_split": "train",
+    "source_categories": [
+      "negative",
+      "smoke",
+      "fire",
+      "smoke+fire"
+    ],
+    "source_images": [
+      "data/processed/dfire/images/train/AoF00000.jpg",
+      "data/processed/dfire/images/train/AoF01029.jpg",
+      "data/processed/dfire/images/train/AoF00001.jpg",
+      "data/processed/dfire/images/train/AoF04009.jpg"
+    ],
+    "held_out_test_used": false,
+    "width": 640,
+    "height": 360,
+    "fps": 4.0,
+    "frames": 12
+  },
+  "configuration": {
+    "device": "cuda:0",
+    "precision_mode": "FP16",
+    "image_size": 640,
+    "confidence_threshold": 0.35,
+    "iou_threshold": 0.7,
+    "frame_skip": 0,
+    "codec": "mp4v",
+    "video_extension": ".mp4"
+  },
+  "outputs": {
+    "annotated_video": "outputs/milestone3/cuda/milestone3_train_sequence_annotated.mp4",
+    "detections_jsonl": "outputs/milestone3/cuda/milestone3_train_sequence_detections.jsonl",
+    "run_summary": "outputs/milestone3/cuda/milestone3_train_sequence_summary.json",
+    "git_ignored": true
+  },
+  "verification": {
+    "run_status": "complete",
+    "frames_read": 12,
+    "frames_processed": 12,
+    "frames_written": 12,
+    "output_frames_declared": 12,
+    "output_frames_decoded": 12,
+    "output_fps": 4.0,
+    "first_timestamp_ms": 0.0,
+    "last_timestamp_ms": 2750.0,
+    "jsonl_records": 12,
+    "frame_indices_ordered": true,
+    "timestamps_ordered": true,
+    "detections_total": 18,
+    "detections_per_class": {
+      "smoke": 6,
+      "fire": 12
+    },
+    "detections_per_frame": [
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      4,
+      4,
+      4
+    ]
+  },
+  "codec_checks": {
+    "mp4v_mp4_real_run": "passed",
+    "mjpg_avi_automated_test": "passed",
+    "writer_open_failure_test": "passed"
+  },
+  "interruption_checks": {
+    "stop_callback_partial_outputs": "passed",
+    "keyboard_interrupt_partial_outputs": "passed",
+    "video_and_jsonl_resources_released": true,
+    "partial_summary_written": true
+  },
+  "automated_tests": {
+    "total": 25,
+    "passed": 25,
+    "existing_before_milestone_3": 19,
+    "video_inference": 6
+  },
+  "timing": {
+    "measured": false,
+    "reason": "Detailed pipeline timing and FPS instrumentation is reserved for Milestone 5."
+  }
+}
