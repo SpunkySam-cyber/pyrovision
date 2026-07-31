@@ -152,7 +152,7 @@ Status: **complete**
 
 ## Step 4 — local real-time inference
 
-Status: **Milestone 1 complete; stopped before Milestone 2**
+Status: **complete — all local inference milestones accepted and benchmarked**
 
 ### 2026-07-31 Milestone 1 — reusable foundation
 
@@ -196,7 +196,7 @@ Status: **Milestone 1 complete; stopped before Milestone 2**
 - Generated JPEG/JSON artifacts remain ignored under `outputs/milestone2/`.
 - Machine-readable verification is versioned in
   `metrics/step4_milestone2.json`.
-- Milestone gate: accepted. Video inference remains unimplemented pending
+- Historical gate: accepted; video inference then remained unimplemented until
   Milestone 3 authorization.
 
 ### 2026-07-31 Milestone 3 — video inference
@@ -223,8 +223,8 @@ Status: **Milestone 1 complete; stopped before Milestone 2**
   0–2750 ms, and summary counts match 6 smoke and 12 fire detections.
 - Local video/media/log outputs remain ignored. Machine-readable verification
   is versioned in `metrics/step4_milestone3.json`.
-- Milestone gate: accepted. Webcam inference remains unimplemented pending
-  Milestone 4 authorization.
+- Historical gate: accepted; webcam inference then remained unimplemented
+  until Milestone 4 authorization.
 
 ### 2026-07-31 Milestone 4 — webcam inference
 
@@ -253,9 +253,9 @@ Status: **Milestone 1 complete; stopped before Milestone 2**
   plausible fire boxes. The held-out test set was not used.
 - Local recordings and logs remain ignored. Machine-readable verification is
   versioned in `metrics/step4_milestone4.json`.
-- Milestone gate: accepted with physical-camera availability documented as the
-  remaining hardware limitation. Performance instrumentation remains pending
-  Milestone 5 authorization.
+- Historical gate: accepted with physical-camera availability documented as
+  the remaining hardware limitation; performance instrumentation was still
+  pending at that point.
 
 ### 2026-07-31 Milestone 5 — production hardening
 
@@ -286,9 +286,8 @@ Status: **Milestone 1 complete; stopped before Milestone 2**
 - The held-out test set was not used. Local verification artifacts remain
   ignored. Machine-readable evidence is versioned in
   `metrics/step4_milestone5.json`.
-- Formal latency and FPS benchmarking did not start. Milestone 6 remains
-  unauthorized and unstarted; the full documentation audit remains reserved
-  for Milestone 7.
+- At the hardening gate, formal latency/FPS benchmarking and the full
+  documentation audit had not started; both were later completed in Step 6.
 
 ### 2026-08-01 Step 5 — FastAPI backend
 
@@ -313,5 +312,36 @@ Status: **Milestone 1 complete; stopped before Milestone 2**
   detections (6 smoke, 12 fire); both outputs were retrievable.
 - Re-ran the existing CUDA CLI on a development negative image; its detection
   list stayed empty. The held-out test set was not used.
-- Deployment, frontend work, live streaming, formal benchmarking, and the full
-  documentation/release audit remain deferred.
+- At the Step 5 gate, deployment, frontend work, live streaming, formal
+  benchmarking, and the full documentation/release audit remained deferred.
+
+## Step 6 — performance, validation, and release preparation
+
+Status: **complete**
+
+### 2026-08-01 benchmark and release gate
+
+- Added additive `predict_frame_timed()` instrumentation without changing the
+  existing `predict_frame()` result or any model/inference algorithm.
+- Added a versioned benchmark configuration and CPU/CUDA-isolated harness for
+  warm-up, preprocessing, inference, postprocessing, annotation, encoding,
+  JSON, full pipelines, FPS, and local HTTP request measurements.
+- Hashed the training-derived development inputs and confirmed the held-out
+  test split was not used.
+- Formal CUDA means: 16.308 ms image model inference, 55.890 ms full image
+  pipeline, 17.892 image FPS, and 37.642 video pipeline FPS.
+- Formal CPU means: 293.546 ms image model inference, 307.801 ms full image
+  pipeline, 3.249 image FPS, and 3.740 video pipeline FPS.
+- Audited README, dataset/training/evaluation/inference/API documentation,
+  CLI help, paths, links, configurations, requirements, package metadata,
+  OpenAPI schemas, status codes, errors, and output downloads.
+- Added deployment readiness guidance covering limits, storage/cleanup,
+  workers, timeouts, authentication, rate limiting, proxying, and monitoring.
+- Prepared Version 1.0 metadata, MIT license, changelog, release notes, and
+  release evidence. Recommended tag: `v1.0.0` after final review.
+- Passed 69/69 automated tests, built and installed the Version 1.0 wheel,
+  verified all installed API routes and output downloads, and completed real
+  CPU/CUDA image, directory, video, and simulated-camera regressions.
+- A physical camera/GUI session remains a target-hardware verification item;
+  simulated-camera cleanup and long-session behavior are covered.
+- Frontend development and deployment remain unstarted.
