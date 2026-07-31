@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pyrovision-ai"
 version = "0.1.0"
-description = "Reusable local inference components for PyroVision AI"
+description = "Reusable fire and smoke inference components and API for PyroVision AI"
 requires-python = ">=3.11"
 dependencies = [
   "numpy>=1.23,<3",
@@ -19,6 +19,7 @@ inference = [
 ]
 backend = [
   "fastapi>=0.115,<1",
+  "httpx>=0.28,<1",
   "python-multipart>=0.0.20,<1",
   "uvicorn[standard]>=0.34,<1",
 ]
