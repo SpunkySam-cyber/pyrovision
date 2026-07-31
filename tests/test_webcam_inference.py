@@ -19,7 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 from infer import build_parser  # noqa: E402
-from pyrovision.errors import InputMediaError  # noqa: E402
+from pyrovision.errors import InputMediaError, OutputMediaError  # noqa: E402
 from pyrovision.outputs import LiveDisplay  # noqa: E402
 from pyrovision.sources import WebcamReader  # noqa: E402
 from pyrovision.types import BoundingBox, Detection, FrameResult  # noqa: E402
@@ -197,6 +197,12 @@ class WebcamInferenceTest(unittest.TestCase):
             WebcamReader(0, capture_factory=lambda index: no_frames)
         self.assertTrue(no_frames.released)
 
+        def fail_capture(index: int) -> object:
+            raise RuntimeError("capture factory exploded")
+
+        with self.assertRaisesRegex(InputMediaError, "initialize webcam"):
+            WebcamReader(0, capture_factory=fail_capture)
+
     def test_pipeline_records_video_jsonl_and_summary_in_order(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -265,6 +271,79 @@ class WebcamInferenceTest(unittest.TestCase):
         self.assertIsNone(output.summary.annotated_media)
         self.assertIsNone(output.summary.detections_file)
         self.assertTrue(display.closed)
+        self.assertTrue(capture.released)
+
+    def test_webcam_outputs_avoid_collisions_and_reject_path_like_run_names(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            first_capture = FakeCapture(make_frames(2))
+            second_capture = FakeCapture(make_frames(2))
+            first = infer_webcam(
+                StubWebcamEngine(),
+                0,
+                output_directory=root,
+                record=False,
+                save_detections=False,
+                max_frames=1,
+                capture_factory=lambda index: first_capture,
+                clock=IncrementingClock(),
+                run_name="session",
+            )
+            second = infer_webcam(
+                StubWebcamEngine(),
+                0,
+                output_directory=root,
+                record=False,
+                save_detections=False,
+                max_frames=1,
+                capture_factory=lambda index: second_capture,
+                clock=IncrementingClock(),
+                run_name="session",
+            )
+            with self.assertRaisesRegex(OutputMediaError, "must not contain a path"):
+                infer_webcam(
+                    StubWebcamEngine(),
+                    0,
+                    output_directory=root,
+                    record=False,
+                    save_detections=False,
+                    max_frames=1,
+                    capture_factory=lambda index: FakeCapture(make_frames(2)),
+                    run_name="../escape",
+                )
+
+        self.assertTrue(first.summary.summary_file.endswith("session_summary.json"))
+        self.assertTrue(second.summary.summary_file.endswith("session_2_summary.json"))
+
+    def test_display_setup_failure_writes_summary_and_releases_capture(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            capture = FakeCapture(make_frames(3))
+
+            def fail_display(name: str) -> object:
+                raise OutputMediaError("display setup failed")
+
+            with self.assertRaisesRegex(OutputMediaError, "display setup failed"):
+                infer_webcam(
+                    StubWebcamEngine(),
+                    0,
+                    output_directory=root,
+                    record=False,
+                    save_detections=True,
+                    display=True,
+                    capture_factory=lambda index: capture,
+                    display_factory=fail_display,
+                    clock=IncrementingClock(),
+                    run_name="display_failure",
+                )
+            summary = json.loads(
+                (root / "display_failure_summary.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+
+        self.assertEqual(summary["status"], "failed")
+        self.assertEqual(summary["frames_processed"], 0)
         self.assertTrue(capture.released)
 
     def test_keyboard_interrupt_retains_partial_outputs_and_releases(self) -> None:

@@ -90,6 +90,29 @@ class ClosedWriter:
         self.released = True
 
 
+class EmptyCapture:
+    def __init__(self) -> None:
+        self.released = False
+
+    def isOpened(self) -> bool:
+        return True
+
+    def get(self, property_id: int) -> float:
+        values = {
+            cv2.CAP_PROP_FRAME_WIDTH: 96.0,
+            cv2.CAP_PROP_FRAME_HEIGHT: 64.0,
+            cv2.CAP_PROP_FPS: 6.0,
+            cv2.CAP_PROP_FRAME_COUNT: 0.0,
+        }
+        return values.get(property_id, 0.0)
+
+    def read(self) -> tuple[bool, None]:
+        return False, None
+
+    def release(self) -> None:
+        self.released = True
+
+
 class VideoInferenceTest(unittest.TestCase):
     def test_video_reader_preserves_frame_order_and_timestamps(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -204,7 +227,78 @@ class VideoInferenceTest(unittest.TestCase):
                     writer_factory=lambda *_: closed_writer,
                 )
 
+            summary = json.loads(
+                (root / "outputs" / "source_summary.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+
         self.assertTrue(closed_writer.released)
+        self.assertEqual(summary["status"], "failed")
+        self.assertIsNone(summary["annotated_media"])
+
+    def test_video_outputs_use_deterministic_collision_suffixes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "source.avi"
+            create_video(source, frame_count=2)
+            output_dir = root / "outputs"
+
+            first = infer_video(
+                StubVideoEngine(),
+                source,
+                output_directory=output_dir,
+                codec="MJPG",
+                video_extension=".avi",
+            )
+            second = infer_video(
+                StubVideoEngine(),
+                source,
+                output_directory=output_dir,
+                codec="MJPG",
+                video_extension=".avi",
+            )
+
+        self.assertTrue(first.summary.summary_file.endswith("source_summary.json"))
+        self.assertTrue(second.summary.summary_file.endswith("source_2_summary.json"))
+        self.assertNotEqual(first.summary.annotated_media, second.summary.annotated_media)
+
+    def test_zero_frame_video_fails_with_summary_and_releases_capture(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "empty.mp4"
+            source.write_bytes(b"capture is injected")
+            capture = EmptyCapture()
+
+            with self.assertRaisesRegex(InputMediaError, "no decodable frames"):
+                infer_video(
+                    StubVideoEngine(),
+                    source,
+                    output_directory=root / "outputs",
+                    save_media=False,
+                    save_detections=False,
+                    capture_factory=lambda path: capture,
+                )
+            summary = json.loads(
+                (root / "outputs" / "empty_summary.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+
+        self.assertEqual(summary["status"], "failed")
+        self.assertEqual(summary["frames_processed"], 0)
+        self.assertTrue(capture.released)
+
+    def test_capture_factory_exception_is_wrapped(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source.mp4"
+            source.write_bytes(b"capture is injected")
+
+            def fail_capture(path: str) -> object:
+                raise RuntimeError("capture factory exploded")
+
+            with self.assertRaisesRegex(InputMediaError, "initialize video capture"):
+                VideoReader(source, capture_factory=fail_capture)
 
     def test_keyboard_interrupt_closes_partial_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

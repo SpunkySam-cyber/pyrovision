@@ -24,11 +24,15 @@ from pyrovision.config import (  # noqa: E402
     OutputConfig,
 )
 from pyrovision.device import ResolvedDevice  # noqa: E402
-from pyrovision.errors import InputMediaError  # noqa: E402
-from pyrovision.images import infer_image  # noqa: E402
+from pyrovision.errors import (  # noqa: E402
+    ConfigurationError,
+    InferenceError,
+    InputMediaError,
+)
+from pyrovision.images import infer_image, infer_image_directory  # noqa: E402
 from pyrovision.model import DetectorEngine  # noqa: E402
 from pyrovision.types import BoundingBox, Detection, FrameResult  # noqa: E402
-from infer import build_parser  # noqa: E402
+from infer import build_parser, validate_mode_arguments  # noqa: E402
 
 
 class FakeTensor:
@@ -143,12 +147,20 @@ class ImageInferenceTest(unittest.TestCase):
                 "2",
                 "--codec",
                 "MJPG",
+                "--log-level",
+                "info",
             ]
         )
         self.assertEqual(arguments.confidence, 0.4)
         self.assertEqual(arguments.class_threshold, [("fire", 0.3)])
         self.assertEqual(arguments.frame_skip, 2)
         self.assertEqual(arguments.codec, "MJPG")
+        self.assertEqual(arguments.log_level, "INFO")
+        invalid_mode = build_parser().parse_args(
+            ["--source", "sample.jpg", "--max-frames", "2"]
+        )
+        with self.assertRaisesRegex(ConfigurationError, "only be used with --webcam"):
+            validate_mode_arguments(invalid_mode)
 
     def test_engine_applies_class_thresholds_and_stable_sorting(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -206,6 +218,34 @@ class ImageInferenceTest(unittest.TestCase):
         self.assertEqual(result.detections, ())
         self.assertEqual(result.to_dict()["detections"], [])
 
+    def test_engine_rejects_fractional_classes_and_nonfinite_values(self) -> None:
+        invalid_boxes = (
+            FakeBoxes([[1.0, 1.0, 5.0, 5.0]], [0.8], [0.5]),
+            FakeBoxes([[1.0, 1.0, 5.0, 5.0]], [float("nan")], [0.0]),
+            FakeBoxes([[1.0, 1.0, float("inf"), 5.0]], [0.8], [0.0]),
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = make_config(root)
+            for boxes in invalid_boxes:
+                with self.subTest(boxes=boxes), self.assertRaises(InferenceError):
+                    make_engine(root, FakeModel(boxes), config).predict_frame(
+                        np.zeros((16, 16, 3), dtype=np.uint8),
+                        source="invalid.jpg",
+                    )
+
+    def test_model_factory_failures_are_wrapped(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "best.pt").write_bytes(b"checkpoint")
+            config = make_config(root)
+
+            def fail_factory(path: str) -> object:
+                raise RuntimeError("loader exploded")
+
+            with self.assertRaisesRegex(InferenceError, "Cannot load model checkpoint"):
+                DetectorEngine.from_config(config, model_factory=fail_factory)
+
     def test_image_pipeline_writes_annotation_and_structured_json(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -252,8 +292,79 @@ class ImageInferenceTest(unittest.TestCase):
             )
 
             self.assertIsNone(output.annotated_media)
-            self.assertIsNone(output.detections_file)
-            self.assertFalse(output_dir.exists())
+        self.assertIsNone(output.detections_file)
+        self.assertFalse(output_dir.exists())
+
+    def test_image_outputs_avoid_collisions_and_serialize_deterministically(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "sample.jpg"
+            self.assertTrue(
+                cv2.imwrite(str(source), np.zeros((40, 60, 3), dtype=np.uint8))
+            )
+            output_dir = root / "outputs"
+
+            first = infer_image(
+                StubImageEngine(),
+                source,
+                output_directory=output_dir,
+            )
+            second = infer_image(
+                StubImageEngine(),
+                source,
+                output_directory=output_dir,
+            )
+            serialized = first.detections_file.read_text(encoding="utf-8")
+
+        self.assertEqual(first.annotated_media.name, "sample_annotated.jpg")
+        self.assertEqual(second.annotated_media.name, "sample_2_annotated.jpg")
+        self.assertEqual(first.detections_file.name, "sample_detections.json")
+        self.assertEqual(second.detections_file.name, "sample_2_detections.json")
+        self.assertLess(serialized.index('"annotated_media"'), serialized.index('"device"'))
+
+    def test_directory_inference_is_flat_sorted_and_reuses_image_pipeline(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source_dir = root / "images"
+            source_dir.mkdir()
+            for name, value in (("B.png", 20), ("a.jpg", 10)):
+                self.assertTrue(
+                    cv2.imwrite(
+                        str(source_dir / name),
+                        np.full((32, 48, 3), value, dtype=np.uint8),
+                    )
+                )
+            (source_dir / "ignored.txt").write_text("ignored", encoding="utf-8")
+            nested = source_dir / "nested"
+            nested.mkdir()
+            self.assertTrue(
+                cv2.imwrite(
+                    str(nested / "nested.jpg"),
+                    np.zeros((32, 48, 3), dtype=np.uint8),
+                )
+            )
+
+            output = infer_image_directory(
+                StubImageEngine(),
+                source_dir,
+                output_directory=root / "outputs",
+                save_media=False,
+                save_detections=False,
+            )
+            empty_dir = root / "empty"
+            empty_dir.mkdir()
+            with self.assertRaisesRegex(InputMediaError, "no supported"):
+                infer_image_directory(
+                    StubImageEngine(),
+                    empty_dir,
+                    output_directory=root / "outputs",
+                )
+
+        self.assertEqual(output.to_dict()["images_processed"], 2)
+        self.assertEqual(
+            [Path(image.result.source).name for image in output.images],
+            ["a.jpg", "B.png"],
+        )
 
     def test_image_pipeline_rejects_unsupported_and_corrupt_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
