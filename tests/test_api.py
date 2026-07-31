@@ -308,6 +308,11 @@ class ApiTest(unittest.TestCase):
         self.assertIn("/predict/video", schema["paths"])
         self.assertNotIn("/predict/webcam", schema["paths"])
         self.assertIn("ImagePredictionResponse", schema["components"]["schemas"])
+        self.assertEqual(schema["info"]["version"], "1.0.0")
+        self.assertEqual(schema["info"]["license"]["identifier"], "MIT")
+        for endpoint in ("/predict/image", "/predict/video"):
+            responses = schema["paths"][endpoint]["post"]["responses"]
+            self.assertTrue({"200", "413", "415", "422", "500", "503"} <= set(responses))
         self.assertEqual(swagger.status_code, 200)
         self.assertEqual(webcam.status_code, 404)
         self.assertEqual(webcam.json()["error"]["code"], "not_found")

@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .. import __version__
+from ..config import InferenceConfig
 from ..model import DetectorEngine
 from .config import BackendConfig, load_backend_config
 from .errors import install_exception_handlers
@@ -28,7 +29,7 @@ from .uploads import store_upload
 
 
 LOGGER = logging.getLogger(__name__)
-EngineFactory = Callable[[object], DetectorEngine]
+EngineFactory = Callable[[InferenceConfig], DetectorEngine]
 
 
 def create_app(
@@ -70,6 +71,7 @@ def create_app(
         version=__version__,
         lifespan=lifespan,
         contact={"name": "PyroVision AI"},
+        license_info={"name": "MIT", "identifier": "MIT"},
     )
     application.state.backend_config = settings
     install_exception_handlers(application)
@@ -113,6 +115,7 @@ def create_app(
             415: {"model": ErrorResponse, "description": "Unsupported image"},
             422: {"model": ErrorResponse, "description": "Invalid image"},
             500: {"model": ErrorResponse, "description": "Inference/output failure"},
+            503: {"model": ErrorResponse, "description": "Model unavailable"},
         },
         summary="Detect fire and smoke in an image",
         description=(
@@ -146,6 +149,7 @@ def create_app(
             415: {"model": ErrorResponse, "description": "Unsupported video"},
             422: {"model": ErrorResponse, "description": "Invalid video"},
             500: {"model": ErrorResponse, "description": "Inference/output failure"},
+            503: {"model": ErrorResponse, "description": "Model unavailable"},
         },
         summary="Detect fire and smoke in a video",
         description=(
