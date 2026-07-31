@@ -1,0 +1,1003 @@
+{
+  "checkpoint": {
+    "sha256": "21812ec7917bda5ad004fc085ba6a9d8ee1b375c95db2efe754463fc430d28c3"
+  },
+  "configuration": {
+    "api_image_iterations": 3,
+    "api_video_runs": 1,
+    "devices": [
+      "cpu",
+      "cuda:0"
+    ],
+    "image": "media/dev/milestone5_images/04_combined.jpg",
+    "image_iterations": 10,
+    "inference": {
+      "class_thresholds": {
+        "fire": 0.35,
+        "smoke": 0.35
+      },
+      "confidence_threshold": 0.35,
+      "frame_skip": 0,
+      "image_size": 640,
+      "iou_threshold": 0.7,
+      "max_detections": 300,
+      "video_codec": "mp4v",
+      "video_extension": ".mp4"
+    },
+    "inference_config": "configs/inference.yaml",
+    "output_directory": "outputs/step6-benchmark",
+    "report_path": "metrics/step6_benchmark.json",
+    "schema_version": 1,
+    "video": "media/dev/milestone3_train_sequence.mp4",
+    "video_runs": 3,
+    "warmup_iterations": 3
+  },
+  "devices": {
+    "cpu": {
+      "api": {
+        "image_request_end_to_end_ms": {
+          "count": 3,
+          "max": 273.278,
+          "mean": 264.68,
+          "median": 264.284,
+          "min": 256.478,
+          "p95": 272.378,
+          "stdev": 6.864
+        },
+        "model_reused": true,
+        "video_end_to_end_fps": 2.738,
+        "video_request_end_to_end_ms": {
+          "count": 1,
+          "max": 4382.351,
+          "mean": 4382.351,
+          "median": 4382.351,
+          "min": 4382.351,
+          "p95": 4382.351,
+          "stdev": 0.0
+        },
+        "warmup_image_request_ms": 349.91
+      },
+      "half_precision": false,
+      "image_components": {
+        "annotation_ms": {
+          "count": 10,
+          "max": 29.78,
+          "mean": 4.045,
+          "median": 1.181,
+          "min": 0.944,
+          "p95": 17.123,
+          "stdev": 8.58
+        },
+        "decode_ms": {
+          "count": 10,
+          "max": 5.806,
+          "mean": 5.272,
+          "median": 5.305,
+          "min": 4.838,
+          "p95": 5.765,
+          "stdev": 0.322
+        },
+        "json_serialization_ms": {
+          "count": 10,
+          "max": 0.123,
+          "mean": 0.095,
+          "median": 0.091,
+          "min": 0.086,
+          "p95": 0.112,
+          "stdev": 0.01
+        },
+        "output_encoding_ms": {
+          "count": 10,
+          "max": 4.992,
+          "mean": 3.896,
+          "median": 3.762,
+          "min": 3.669,
+          "p95": 4.543,
+          "stdev": 0.379
+        },
+        "steady_state": {
+          "combined_postprocessing_ms": {
+            "count": 10,
+            "max": 3.744,
+            "mean": 1.685,
+            "median": 1.442,
+            "min": 1.209,
+            "p95": 2.846,
+            "stdev": 0.698
+          },
+          "engine_total_ms": {
+            "count": 10,
+            "max": 371.772,
+            "mean": 297.977,
+            "median": 296.692,
+            "min": 225.014,
+            "p95": 355.55,
+            "stdev": 39.478
+          },
+          "framework_postprocessing_ms": {
+            "count": 10,
+            "max": 3.605,
+            "mean": 1.538,
+            "median": 1.302,
+            "min": 1.07,
+            "p95": 2.677,
+            "stdev": 0.698
+          },
+          "model_call_ms": {
+            "count": 10,
+            "max": 371.609,
+            "mean": 297.803,
+            "median": 296.522,
+            "min": 224.847,
+            "p95": 355.386,
+            "stdev": 39.487
+          },
+          "model_inference_ms": {
+            "count": 10,
+            "max": 367.434,
+            "mean": 293.546,
+            "median": 292.66,
+            "min": 220.69,
+            "p95": 350.211,
+            "stdev": 39.313
+          },
+          "model_only_fps": 3.407,
+          "preprocessing_ms": {
+            "count": 10,
+            "max": 2.793,
+            "mean": 2.41,
+            "median": 2.521,
+            "min": 1.834,
+            "p95": 2.701,
+            "stdev": 0.288
+          },
+          "project_postprocessing_ms": {
+            "count": 10,
+            "max": 0.205,
+            "mean": 0.147,
+            "median": 0.141,
+            "min": 0.139,
+            "p95": 0.177,
+            "stdev": 0.019
+          }
+        },
+        "warmup": {
+          "combined_postprocessing_ms": {
+            "count": 3,
+            "max": 1.644,
+            "mean": 1.358,
+            "median": 1.309,
+            "min": 1.121,
+            "p95": 1.611,
+            "stdev": 0.217
+          },
+          "engine_total_ms": {
+            "count": 3,
+            "max": 490.908,
+            "mean": 371.203,
+            "median": 350.873,
+            "min": 271.83,
+            "p95": 476.904,
+            "stdev": 90.586
+          },
+          "framework_postprocessing_ms": {
+            "count": 3,
+            "max": 1.424,
+            "mean": 1.172,
+            "median": 1.138,
+            "min": 0.954,
+            "p95": 1.395,
+            "stdev": 0.193
+          },
+          "model_call_ms": {
+            "count": 3,
+            "max": 490.647,
+            "mean": 370.989,
+            "median": 350.685,
+            "min": 271.635,
+            "p95": 476.651,
+            "stdev": 90.557
+          },
+          "model_inference_ms": {
+            "count": 3,
+            "max": 346.212,
+            "mean": 296.376,
+            "median": 274.703,
+            "min": 268.212,
+            "p95": 339.061,
+            "stdev": 35.339
+          },
+          "model_only_fps": 3.374,
+          "preprocessing_ms": {
+            "count": 3,
+            "max": 17.43,
+            "mean": 7.52,
+            "median": 3.125,
+            "min": 2.004,
+            "p95": 16.0,
+            "stdev": 7.023
+          },
+          "project_postprocessing_ms": {
+            "count": 3,
+            "max": 0.221,
+            "mean": 0.186,
+            "median": 0.17,
+            "min": 0.167,
+            "p95": 0.216,
+            "stdev": 0.025
+          }
+        }
+      },
+      "image_pipeline": {
+        "end_to_end_fps": 3.249,
+        "end_to_end_ms": {
+          "count": 10,
+          "max": 384.584,
+          "mean": 307.801,
+          "median": 317.572,
+          "min": 226.804,
+          "p95": 372.105,
+          "stdev": 49.348
+        },
+        "prediction": {
+          "combined_postprocessing_ms": {
+            "count": 10,
+            "max": 1.971,
+            "mean": 1.451,
+            "median": 1.465,
+            "min": 0.84,
+            "p95": 1.928,
+            "stdev": 0.365
+          },
+          "engine_total_ms": {
+            "count": 10,
+            "max": 349.165,
+            "mean": 280.331,
+            "median": 277.271,
+            "min": 211.039,
+            "p95": 340.171,
+            "stdev": 45.834
+          },
+          "framework_postprocessing_ms": {
+            "count": 10,
+            "max": 1.732,
+            "mean": 1.309,
+            "median": 1.323,
+            "min": 0.758,
+            "p95": 1.72,
+            "stdev": 0.322
+          },
+          "model_call_ms": {
+            "count": 10,
+            "max": 349.0,
+            "mean": 280.165,
+            "median": 277.103,
+            "min": 210.925,
+            "p95": 339.959,
+            "stdev": 45.815
+          },
+          "model_inference_ms": {
+            "count": 10,
+            "max": 345.003,
+            "mean": 276.232,
+            "median": 273.608,
+            "min": 207.593,
+            "p95": 334.715,
+            "stdev": 45.326
+          },
+          "model_only_fps": 3.62,
+          "preprocessing_ms": {
+            "count": 10,
+            "max": 4.707,
+            "mean": 2.318,
+            "median": 2.143,
+            "min": 1.691,
+            "p95": 3.708,
+            "stdev": 0.855
+          },
+          "project_postprocessing_ms": {
+            "count": 10,
+            "max": 0.239,
+            "mean": 0.141,
+            "median": 0.139,
+            "min": 0.08,
+            "p95": 0.22,
+            "stdev": 0.048
+          }
+        }
+      },
+      "model_loading_ms": 3416.791,
+      "resolved_device": "cpu",
+      "video_components": {
+        "annotation_ms": {
+          "count": 12,
+          "max": 0.621,
+          "mean": 0.257,
+          "median": 0.223,
+          "min": 0.104,
+          "p95": 0.532,
+          "stdev": 0.146
+        },
+        "decode_ms_per_frame": 3.536,
+        "decode_total_ms": 42.433,
+        "frames": 12,
+        "json_serialization_ms": {
+          "count": 12,
+          "max": 0.135,
+          "mean": 0.063,
+          "median": 0.044,
+          "min": 0.034,
+          "p95": 0.131,
+          "stdev": 0.038
+        },
+        "output_encoding_ms": {
+          "count": 12,
+          "max": 9.133,
+          "mean": 3.474,
+          "median": 2.856,
+          "min": 1.332,
+          "p95": 7.773,
+          "stdev": 2.164
+        },
+        "output_finalization_ms": 2.137,
+        "prediction": {
+          "combined_postprocessing_ms": {
+            "count": 12,
+            "max": 2.785,
+            "mean": 1.54,
+            "median": 1.324,
+            "min": 0.622,
+            "p95": 2.708,
+            "stdev": 0.657
+          },
+          "engine_total_ms": {
+            "count": 12,
+            "max": 371.483,
+            "mean": 283.641,
+            "median": 272.514,
+            "min": 254.002,
+            "p95": 347.355,
+            "stdev": 32.232
+          },
+          "framework_postprocessing_ms": {
+            "count": 12,
+            "max": 2.437,
+            "mean": 1.355,
+            "median": 1.203,
+            "min": 0.526,
+            "p95": 2.359,
+            "stdev": 0.569
+          },
+          "model_call_ms": {
+            "count": 12,
+            "max": 371.298,
+            "mean": 283.431,
+            "median": 272.39,
+            "min": 253.583,
+            "p95": 347.072,
+            "stdev": 32.219
+          },
+          "model_inference_ms": {
+            "count": 12,
+            "max": 365.555,
+            "mean": 276.824,
+            "median": 267.121,
+            "min": 246.235,
+            "p95": 340.278,
+            "stdev": 32.196
+          },
+          "model_only_fps": 3.612,
+          "preprocessing_ms": {
+            "count": 12,
+            "max": 3.805,
+            "mean": 1.873,
+            "median": 1.768,
+            "min": 1.316,
+            "p95": 2.78,
+            "stdev": 0.615
+          },
+          "project_postprocessing_ms": {
+            "count": 12,
+            "max": 0.35,
+            "mean": 0.185,
+            "median": 0.147,
+            "min": 0.095,
+            "p95": 0.349,
+            "stdev": 0.096
+          }
+        }
+      },
+      "video_pipeline": {
+        "end_to_end_fps": 3.74,
+        "end_to_end_ms": {
+          "count": 3,
+          "max": 3385.859,
+          "mean": 3208.373,
+          "median": 3220.033,
+          "min": 3019.226,
+          "p95": 3369.276,
+          "stdev": 149.904
+        },
+        "frames_per_run": [
+          12,
+          12,
+          12
+        ],
+        "prediction": {
+          "combined_postprocessing_ms": {
+            "count": 36,
+            "max": 5.39,
+            "mean": 1.209,
+            "median": 1.196,
+            "min": 0.363,
+            "p95": 1.635,
+            "stdev": 0.773
+          },
+          "engine_total_ms": {
+            "count": 36,
+            "max": 421.805,
+            "mean": 260.966,
+            "median": 229.129,
+            "min": 183.248,
+            "p95": 398.048,
+            "stdev": 66.949
+          },
+          "framework_postprocessing_ms": {
+            "count": 36,
+            "max": 5.167,
+            "mean": 1.071,
+            "median": 1.046,
+            "min": 0.317,
+            "p95": 1.376,
+            "stdev": 0.749
+          },
+          "model_call_ms": {
+            "count": 36,
+            "max": 421.503,
+            "mean": 260.803,
+            "median": 229.033,
+            "min": 183.179,
+            "p95": 397.898,
+            "stdev": 66.925
+          },
+          "model_inference_ms": {
+            "count": 36,
+            "max": 415.733,
+            "mean": 255.135,
+            "median": 223.946,
+            "min": 180.785,
+            "p95": 390.85,
+            "stdev": 66.315
+          },
+          "model_only_fps": 3.919,
+          "preprocessing_ms": {
+            "count": 36,
+            "max": 3.897,
+            "mean": 1.772,
+            "median": 1.528,
+            "min": 0.734,
+            "p95": 2.986,
+            "stdev": 0.668
+          },
+          "project_postprocessing_ms": {
+            "count": 36,
+            "max": 0.278,
+            "mean": 0.138,
+            "median": 0.135,
+            "min": 0.044,
+            "p95": 0.236,
+            "stdev": 0.054
+          }
+        },
+        "runs": 3
+      }
+    },
+    "cuda:0": {
+      "api": {
+        "image_request_end_to_end_ms": {
+          "count": 3,
+          "max": 88.877,
+          "mean": 79.668,
+          "median": 78.68,
+          "min": 71.448,
+          "p95": 87.858,
+          "stdev": 7.15
+        },
+        "model_reused": true,
+        "video_end_to_end_fps": 25.875,
+        "video_request_end_to_end_ms": {
+          "count": 1,
+          "max": 463.772,
+          "mean": 463.772,
+          "median": 463.772,
+          "min": 463.772,
+          "p95": 463.772,
+          "stdev": 0.0
+        },
+        "warmup_image_request_ms": 2692.738
+      },
+      "half_precision": true,
+      "image_components": {
+        "annotation_ms": {
+          "count": 10,
+          "max": 28.913,
+          "mean": 4.279,
+          "median": 1.413,
+          "min": 1.253,
+          "p95": 16.934,
+          "stdev": 8.217
+        },
+        "decode_ms": {
+          "count": 10,
+          "max": 6.445,
+          "mean": 5.998,
+          "median": 5.872,
+          "min": 5.789,
+          "p95": 6.358,
+          "stdev": 0.226
+        },
+        "json_serialization_ms": {
+          "count": 10,
+          "max": 0.119,
+          "mean": 0.103,
+          "median": 0.101,
+          "min": 0.096,
+          "p95": 0.114,
+          "stdev": 0.007
+        },
+        "output_encoding_ms": {
+          "count": 10,
+          "max": 4.256,
+          "mean": 3.881,
+          "median": 3.872,
+          "min": 3.644,
+          "p95": 4.171,
+          "stdev": 0.172
+        },
+        "steady_state": {
+          "combined_postprocessing_ms": {
+            "count": 10,
+            "max": 4.149,
+            "mean": 3.15,
+            "median": 2.957,
+            "min": 2.543,
+            "p95": 3.95,
+            "stdev": 0.474
+          },
+          "engine_total_ms": {
+            "count": 10,
+            "max": 23.525,
+            "mean": 21.542,
+            "median": 21.221,
+            "min": 19.55,
+            "p95": 23.326,
+            "stdev": 1.241
+          },
+          "framework_postprocessing_ms": {
+            "count": 10,
+            "max": 3.649,
+            "mean": 2.656,
+            "median": 2.465,
+            "min": 2.109,
+            "p95": 3.459,
+            "stdev": 0.464
+          },
+          "model_call_ms": {
+            "count": 10,
+            "max": 23.055,
+            "mean": 21.024,
+            "median": 20.758,
+            "min": 19.091,
+            "p95": 22.818,
+            "stdev": 1.197
+          },
+          "model_inference_ms": {
+            "count": 10,
+            "max": 18.552,
+            "mean": 16.308,
+            "median": 16.024,
+            "min": 15.012,
+            "p95": 18.027,
+            "stdev": 0.975
+          },
+          "model_only_fps": 61.32,
+          "preprocessing_ms": {
+            "count": 10,
+            "max": 2.129,
+            "mean": 1.714,
+            "median": 1.654,
+            "min": 1.538,
+            "p95": 2.039,
+            "stdev": 0.17
+          },
+          "project_postprocessing_ms": {
+            "count": 10,
+            "max": 0.816,
+            "mean": 0.495,
+            "median": 0.453,
+            "min": 0.434,
+            "p95": 0.674,
+            "stdev": 0.11
+          }
+        },
+        "warmup": {
+          "combined_postprocessing_ms": {
+            "count": 3,
+            "max": 12.531,
+            "mean": 5.912,
+            "median": 2.676,
+            "min": 2.528,
+            "p95": 11.546,
+            "stdev": 4.681
+          },
+          "engine_total_ms": {
+            "count": 3,
+            "max": 5066.297,
+            "mean": 1701.732,
+            "median": 19.951,
+            "min": 18.948,
+            "p95": 4561.663,
+            "stdev": 2379.107
+          },
+          "framework_postprocessing_ms": {
+            "count": 3,
+            "max": 11.576,
+            "mean": 5.259,
+            "median": 2.214,
+            "min": 1.987,
+            "p95": 10.64,
+            "stdev": 4.468
+          },
+          "model_call_ms": {
+            "count": 3,
+            "max": 5065.308,
+            "mean": 1701.054,
+            "median": 19.468,
+            "min": 18.385,
+            "p95": 4560.724,
+            "stdev": 2378.887
+          },
+          "model_inference_ms": {
+            "count": 3,
+            "max": 2001.226,
+            "mean": 677.051,
+            "median": 15.311,
+            "min": 14.615,
+            "p95": 1802.635,
+            "stdev": 936.334
+          },
+          "model_only_fps": 1.477,
+          "preprocessing_ms": {
+            "count": 3,
+            "max": 4.167,
+            "mean": 2.421,
+            "median": 1.602,
+            "min": 1.493,
+            "p95": 3.91,
+            "stdev": 1.236
+          },
+          "project_postprocessing_ms": {
+            "count": 3,
+            "max": 0.955,
+            "mean": 0.653,
+            "median": 0.541,
+            "min": 0.462,
+            "p95": 0.914,
+            "stdev": 0.216
+          }
+        }
+      },
+      "image_pipeline": {
+        "end_to_end_fps": 17.892,
+        "end_to_end_ms": {
+          "count": 10,
+          "max": 74.431,
+          "mean": 55.89,
+          "median": 59.526,
+          "min": 28.898,
+          "p95": 69.593,
+          "stdev": 12.347
+        },
+        "prediction": {
+          "combined_postprocessing_ms": {
+            "count": 10,
+            "max": 5.207,
+            "mean": 3.272,
+            "median": 3.082,
+            "min": 1.724,
+            "p95": 4.635,
+            "stdev": 0.863
+          },
+          "engine_total_ms": {
+            "count": 10,
+            "max": 40.399,
+            "mean": 23.679,
+            "median": 22.128,
+            "min": 13.239,
+            "p95": 35.218,
+            "stdev": 6.645
+          },
+          "framework_postprocessing_ms": {
+            "count": 10,
+            "max": 4.714,
+            "mean": 2.745,
+            "median": 2.64,
+            "min": 1.427,
+            "p95": 4.022,
+            "stdev": 0.787
+          },
+          "model_call_ms": {
+            "count": 10,
+            "max": 39.881,
+            "mean": 23.126,
+            "median": 21.343,
+            "min": 12.929,
+            "p95": 34.572,
+            "stdev": 6.593
+          },
+          "model_inference_ms": {
+            "count": 10,
+            "max": 31.166,
+            "mean": 17.887,
+            "median": 16.467,
+            "min": 10.134,
+            "p95": 26.824,
+            "stdev": 5.179
+          },
+          "model_only_fps": 55.907,
+          "preprocessing_ms": {
+            "count": 10,
+            "max": 3.625,
+            "mean": 2.083,
+            "median": 1.771,
+            "min": 1.145,
+            "p95": 3.511,
+            "stdev": 0.751
+          },
+          "project_postprocessing_ms": {
+            "count": 10,
+            "max": 1.081,
+            "mean": 0.528,
+            "median": 0.442,
+            "min": 0.297,
+            "p95": 0.94,
+            "stdev": 0.216
+          }
+        }
+      },
+      "model_loading_ms": 1535.963,
+      "resolved_device": "cuda:0",
+      "video_components": {
+        "annotation_ms": {
+          "count": 12,
+          "max": 0.507,
+          "mean": 0.254,
+          "median": 0.225,
+          "min": 0.125,
+          "p95": 0.471,
+          "stdev": 0.119
+        },
+        "decode_ms_per_frame": 5.108,
+        "decode_total_ms": 61.301,
+        "frames": 12,
+        "json_serialization_ms": {
+          "count": 12,
+          "max": 0.161,
+          "mean": 0.067,
+          "median": 0.048,
+          "min": 0.043,
+          "p95": 0.151,
+          "stdev": 0.039
+        },
+        "output_encoding_ms": {
+          "count": 12,
+          "max": 3.365,
+          "mean": 1.838,
+          "median": 1.432,
+          "min": 1.148,
+          "p95": 3.196,
+          "stdev": 0.778
+        },
+        "output_finalization_ms": 1.386,
+        "prediction": {
+          "combined_postprocessing_ms": {
+            "count": 12,
+            "max": 3.772,
+            "mean": 2.329,
+            "median": 2.333,
+            "min": 1.053,
+            "p95": 3.588,
+            "stdev": 0.83
+          },
+          "engine_total_ms": {
+            "count": 12,
+            "max": 24.975,
+            "mean": 20.517,
+            "median": 20.281,
+            "min": 18.243,
+            "p95": 24.471,
+            "stdev": 1.974
+          },
+          "framework_postprocessing_ms": {
+            "count": 12,
+            "max": 3.161,
+            "mean": 2.054,
+            "median": 2.007,
+            "min": 0.947,
+            "p95": 3.086,
+            "stdev": 0.711
+          },
+          "model_call_ms": {
+            "count": 12,
+            "max": 24.545,
+            "mean": 20.224,
+            "median": 19.919,
+            "min": 18.117,
+            "p95": 24.129,
+            "stdev": 1.948
+          },
+          "model_inference_ms": {
+            "count": 12,
+            "max": 19.517,
+            "mean": 16.309,
+            "median": 15.708,
+            "min": 14.632,
+            "p95": 18.454,
+            "stdev": 1.366
+          },
+          "model_only_fps": 61.316,
+          "preprocessing_ms": {
+            "count": 12,
+            "max": 3.814,
+            "mean": 1.569,
+            "median": 1.312,
+            "min": 1.131,
+            "p95": 2.725,
+            "stdev": 0.703
+          },
+          "project_postprocessing_ms": {
+            "count": 12,
+            "max": 0.612,
+            "mean": 0.276,
+            "median": 0.258,
+            "min": 0.105,
+            "p95": 0.503,
+            "stdev": 0.139
+          }
+        }
+      },
+      "video_pipeline": {
+        "end_to_end_fps": 37.642,
+        "end_to_end_ms": {
+          "count": 3,
+          "max": 338.321,
+          "mean": 318.795,
+          "median": 321.849,
+          "min": 296.216,
+          "p95": 336.674,
+          "stdev": 17.325
+        },
+        "frames_per_run": [
+          12,
+          12,
+          12
+        ],
+        "prediction": {
+          "combined_postprocessing_ms": {
+            "count": 36,
+            "max": 4.317,
+            "mean": 2.233,
+            "median": 2.442,
+            "min": 0.958,
+            "p95": 3.54,
+            "stdev": 0.837
+          },
+          "engine_total_ms": {
+            "count": 36,
+            "max": 23.346,
+            "mean": 19.672,
+            "median": 19.752,
+            "min": 11.248,
+            "p95": 22.839,
+            "stdev": 2.421
+          },
+          "framework_postprocessing_ms": {
+            "count": 36,
+            "max": 4.04,
+            "mean": 1.903,
+            "median": 2.11,
+            "min": 0.858,
+            "p95": 2.634,
+            "stdev": 0.686
+          },
+          "model_call_ms": {
+            "count": 36,
+            "max": 23.217,
+            "mean": 19.323,
+            "median": 19.398,
+            "min": 11.02,
+            "p95": 22.273,
+            "stdev": 2.363
+          },
+          "model_inference_ms": {
+            "count": 36,
+            "max": 20.817,
+            "mean": 15.855,
+            "median": 16.122,
+            "min": 8.627,
+            "p95": 17.815,
+            "stdev": 2.086
+          },
+          "model_only_fps": 63.072,
+          "preprocessing_ms": {
+            "count": 36,
+            "max": 1.712,
+            "mean": 1.254,
+            "median": 1.223,
+            "min": 0.743,
+            "p95": 1.609,
+            "stdev": 0.18
+          },
+          "project_postprocessing_ms": {
+            "count": 36,
+            "max": 1.898,
+            "mean": 0.33,
+            "median": 0.272,
+            "min": 0.1,
+            "p95": 0.507,
+            "stdev": 0.295
+          }
+        },
+        "runs": 3
+      }
+    }
+  },
+  "generated_at_utc": "2026-07-31T22:03:51.277442+00:00",
+  "git_commit": "9983e89ded7925ce6670305b1bb251219c4a95f5",
+  "hardware": {
+    "cuda_device_0": {
+      "compute_capability": "8.9",
+      "name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+      "total_memory_bytes": 6438780928
+    },
+    "logical_cpu_count": 20,
+    "memory_bytes": 16890322944,
+    "physical_cpu_count": 14,
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 151 Stepping 2, GenuineIntel"
+  },
+  "inputs": {
+    "image": {
+      "bytes": 57043,
+      "path": "media/dev/milestone5_images/04_combined.jpg",
+      "sha256": "6258179f096a2030c87215c4a7587f795b0755ae6871b9be8d5006d30311f30e"
+    },
+    "video": {
+      "bytes": 124704,
+      "path": "media/dev/milestone3_train_sequence.mp4",
+      "sha256": "c63efe196531df6eca1deb291143e6473771c1ea9713d63c9c58340089e7b606"
+    }
+  },
+  "methodology": {
+    "cuda_synchronization": true,
+    "device_process_isolation": true,
+    "execution": "sequential, one request/frame at a time",
+    "framework_stage_source": "Ultralytics Results.speed",
+    "percentile": "linearly interpolated p95",
+    "test_split_used": false,
+    "warmup_excluded_from_steady_state": true
+  },
+  "schema_version": 1,
+  "software": {
+    "cuda_runtime": "12.9",
+    "fastapi": "0.141.1",
+    "numpy": "2.4.4",
+    "opencv": "5.0.0",
+    "pydantic": "2.13.4",
+    "pyrovision": "1.0.0",
+    "python": "3.11.4",
+    "torch": "2.8.0+cu129",
+    "ultralytics": "8.4.37",
+    "uvicorn": "0.52.0"
+  }
+}
