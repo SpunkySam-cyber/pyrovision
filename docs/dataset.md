@@ -42,5 +42,9 @@ The raw archive remains unchanged. The final strict verification loaded every
 processed image successfully and confirmed that no JPEG was missing its
 end-of-image marker.
 
-The test split remains untouched until Step 3. Pre-training and post-training
-comparisons in Step 2 use only the validation split.
+The test split remained untouched until the one-time Step 3 evaluation.
+Pre-training and post-training comparisons in Step 2 used only validation.
+
+The D-Fire data keeps its source license and citation requirements. The MIT
+license at the repository root applies to PyroVision project code and
+documentation, not to third-party datasets, checkpoints, or dependencies.

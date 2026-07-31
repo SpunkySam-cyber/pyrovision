@@ -1,12 +1,13 @@
 # PyroVision FastAPI backend
 
-Step 5 exposes the existing verified PyroVision inference package through a
+PyroVision 1.0 exposes the existing verified inference package through a
 thin FastAPI adapter. It calls `DetectorEngine`, `infer_image`, and
 `infer_video`, then maps project-owned results into Pydantic response models.
 The API does not import training code or expose raw Ultralytics objects.
 
-Deployment, webcam HTTP inference, live streaming, frontend work, and formal
-performance benchmarking are not part of this step.
+Deployment, webcam HTTP inference, live streaming, and frontend work are not
+part of the backend release. Formal benchmarking was completed separately in
+Step 6.
 
 ## Architecture and lifecycle
 
@@ -38,6 +39,9 @@ Run from the repository root:
 $env:PYTHONPATH = (Resolve-Path src)
 .venv\Scripts\python.exe -m pyrovision.api
 ```
+
+After installing the package, the equivalent entry point is
+`pyrovision-api`.
 
 The default address is `http://127.0.0.1:8000`. Startup fails closed if the
 checkpoint is missing, its digest differs, class names are out of order, or
@@ -81,7 +85,7 @@ This endpoint responds only after successful model startup:
 ```json
 {
   "status": "ok",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "model_loaded": true,
   "checkpoint_sha256": "21812ec7917bda5ad004fc085ba6a9d8ee1b375c95db2efe754463fc430d28c3",
   "checkpoint_identifier": "21812ec7917b",
@@ -229,4 +233,8 @@ Swagger returned HTTP 200. A training-derived development image returned one
 smoke and three fire detections. The 12-frame development video returned 12
 ordered records and 18 detections (6 smoke, 12 fire); both annotated output
 URLs returned HTTP 200. The held-out test set was not used. Operational request
-duration fields are not a formal benchmark.
+duration fields are not a formal benchmark. Formal CPU/CUDA component,
+pipeline, and HTTP results are available in `docs/benchmark.md`.
+
+Production hosting controls and unresolved public-deployment limits are
+documented in `docs/deployment.md`.

@@ -25,8 +25,8 @@ these test results.
 | Fire | 0.7125 | 0.6178 | 0.6916 | 0.3675 |
 
 Inference time was 4.30 ms/image during batched test evaluation. This is a
-model benchmark, not the end-to-end webcam/video FPS measurement required in
-Step 4.
+different workload from the single-frame and end-to-end Step 6 benchmark and
+must not be compared as if batch size and pipeline scope were identical.
 
 ## Generalization from validation to test
 

@@ -1,9 +1,15 @@
 # PyroVision AI
 
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
+[![Backend](https://img.shields.io/badge/backend-v1.0.0-009688.svg)](docs/api.md)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](RELEASE_NOTES.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Real-time fire and smoke detection with YOLO11. The project is being built and
 verified one stage at a time. Dataset preparation, YOLO11s training, held-out
-test evaluation, local inference engineering, and the local FastAPI backend
-(Steps 1–5) are complete. Deployment and frontend work have not started.
+test evaluation, local inference engineering, the FastAPI backend, and the
+Version 1.0 release audit (Steps 1–6) are complete. Deployment and frontend
+work have not started.
 
 ## Step 1 — dataset preparation
 
@@ -151,8 +157,7 @@ and Git-ignored with the run directory.
 
 ## Step 4 — local real-time inference
 
-Status: **Milestone 5 production hardening complete; Milestone 6 has not
-started. Formal performance benchmarking remains deferred.**
+Status: **complete and formally benchmarked.**
 
 The reusable package now lives under `src/pyrovision/`. Its versioned inference
 configuration validates checkpoint selection, expected class names, global and
@@ -295,8 +300,8 @@ regressions passed with the selected checkpoint. Corrupt and unsupported
 inputs, unavailable cameras/devices, writer failure, interruption, collisions,
 checkpoint mismatch, class-order mismatch, and invalid configuration were all
 verified. See `docs/inference.md` and `metrics/step4_milestone5.json` for this
-gate. The held-out test set was not used, and formal latency/FPS benchmarking
-has not started.
+gate. The held-out test set was not used. These were the pre-benchmark
+hardening results; formal measurements are recorded in Step 6.
 
 ## Step 5 — FastAPI backend
 
@@ -338,6 +343,55 @@ All **60 tests** pass: the previous 50 inference/training/evaluation tests plus
 on `cuda:0`; health, Swagger, development image/video inference, and annotated
 output retrieval passed. See `docs/api.md` and `metrics/step5_backend.json`.
 
-`POST /predict/webcam`, live streaming, deployment, frontend development,
-formal performance benchmarking, and the final documentation/release audit
-remain deferred.
+`POST /predict/webcam`, live streaming, deployment, and frontend development
+remain out of scope for the backend release.
+
+## Step 6 — benchmark and Version 1.0 release gate
+
+Status: **complete; recommended tag `v1.0.0`.**
+
+Run the versioned CPU/CUDA benchmark:
+
+```powershell
+.venv\Scripts\python.exe -B scripts\benchmark.py `
+  --config configs\benchmark.yaml
+```
+
+Steady-state summary on the local RTX 4050 development machine:
+
+| Measurement | CPU | CUDA |
+| --- | ---: | ---: |
+| Image model inference | 293.546 ms | 16.308 ms |
+| Full image pipeline | 307.801 ms | 55.890 ms |
+| Image pipeline FPS | 3.249 | 17.892 |
+| Full 12-frame video | 3208.373 ms | 318.795 ms |
+| Video pipeline FPS | 3.740 | 37.642 |
+| Steady HTTP image request | 264.680 ms | 79.668 ms |
+| HTTP 12-frame video request | 4382.351 ms | 463.772 ms |
+
+Warm-up, every component stage, hardware/software, methodology, input hashes,
+and limitations are documented in [docs/benchmark.md](docs/benchmark.md) and
+`metrics/step6_benchmark.json`.
+
+The final release gate passed **69/69 automated tests** plus real-engine CPU,
+CUDA, image, directory, video, simulated-camera, and local API checks. The
+machine-readable release record is `metrics/step6_release.json`.
+
+Release and deployment material:
+
+- [API contract](docs/api.md)
+- [Deployment readiness](docs/deployment.md)
+- [Release notes](RELEASE_NOTES.md)
+- [Changelog](CHANGELOG.md)
+- [MIT license](LICENSE)
+
+Install the test client dependency before running the complete suite:
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements-test.txt
+.venv\Scripts\python.exe -B -m unittest discover -s tests -v
+```
+
+PyroVision remains an engineering detection baseline, not a certified
+life-safety system. Public deployment still requires the controls in the
+deployment readiness review.

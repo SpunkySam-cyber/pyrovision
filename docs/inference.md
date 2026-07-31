@@ -1,10 +1,11 @@
 # Step 4 — local inference
 
-Status: **Milestone 3 video inference complete**
+Status: **complete — image, directory, video, and webcam inference hardened and
+formally benchmarked**
 
-Milestone 1 establishes the reusable boundary that later image, video, webcam,
-and FastAPI adapters will share. It does not run detection or write annotated
-media yet.
+Milestone 1 established the reusable boundary now shared by image, directory,
+video, webcam, benchmark, and FastAPI adapters. The sections below retain the
+implementation history and finish with the current hardened contract.
 
 ## Package structure
 
@@ -23,6 +24,12 @@ src/pyrovision/
   sources.py        Media classification and ordered video decoding
   outputs.py        Validated video writer, JSONL sink, atomic JSON summaries
   video.py          Video frame pipeline, interruption handling, run summaries
+  webcam.py         Webcam capture, display, recording, and run summaries
+  streaming.py      Shared ordered frame processing and resource cleanup
+  timing.py         Project-owned opt-in prediction timing results
+  benchmarking.py   Reproducible CPU/CUDA component and pipeline benchmark
+  yaml_utils.py     Strict duplicate-key-safe YAML loading
+  api/              FastAPI lifecycle, schemas, upload handling, and services
 ```
 
 The package never imports `scripts/train.py`. The training runner imports only
@@ -65,7 +72,7 @@ Classes: 0 smoke, 1 fire
 ```
 
 Class validation requires exact count, ID order, spelling, and casing. The
-future detector engine will invoke the same validation after loading the model.
+detector engine invokes the same validation after loading the model.
 
 ## Device policy
 
@@ -74,14 +81,14 @@ future detector engine will invoke the same validation after loading the model.
 - `cuda`: require `cuda:0`; fail clearly if CUDA is unavailable.
 - `cuda:N`: require that exact device index; never silently choose another.
 
-FP16 eligibility is recorded only for CUDA. The later detector engine will
-combine this capability with the configured `half` policy.
+FP16 eligibility is recorded only for CUDA. The detector engine combines this
+capability with the configured `half` policy.
 
 ## Stable result boundary
 
 `BoundingBox`, `Detection`, and `FrameResult` are immutable, framework-neutral
-types. Their dictionaries use stable field order and documented precision. A
-future backend can serialize these objects without importing Ultralytics or
+types. Their dictionaries use stable field order and documented precision. The
+FastAPI backend serializes these objects without exposing Ultralytics or
 depending on its internal `Results` representation.
 
 ## Threshold policy
@@ -125,8 +132,7 @@ filtered against its own class threshold. Coordinates are clipped to the frame,
 degenerate boxes are discarded, and results receive a deterministic ordering.
 
 The engine uses a prediction lock. This avoids concurrent access to mutable
-Ultralytics model state and establishes a safe boundary for the later FastAPI
-adapter.
+Ultralytics model state and provides the boundary reused by FastAPI.
 
 ### Image command
 
@@ -204,8 +210,8 @@ is versioned at `metrics/step4_milestone2.json`.
 - Annotated image decode/manual inspection: passed
 - Structured JSON decode: passed
 
-Detailed latency and FPS are intentionally not reported yet; those measurements
-belong to Milestone 5 after the video pipeline exists.
+This historical image gate intentionally deferred detailed latency and FPS.
+Formal CPU/CUDA measurements are now available in `docs/benchmark.md`.
 
 ## Milestone 3 — video inference
 
@@ -253,7 +259,8 @@ every complete record readable after an interruption.
 The summary records completion/interruption status, checkpoint, device, codec,
 input/output FPS, dimensions, source/read/processed/written frame counts,
 timestamp range, frame skipping, and total/per-class detections. Detailed stage
-timings are intentionally deferred to Milestone 5.
+timings are reported separately in `docs/benchmark.md` so normal output schemas
+remain unchanged.
 
 ### Codec handling
 
@@ -355,7 +362,7 @@ boundary used by video inference. It provides:
 
 Frame skipping uses the existing `input.frame_skip` setting. Recording FPS is
 divided by the processing stride, matching the video policy. Accurate
-end-to-end and processed FPS measurement remains reserved for Milestone 5.
+end-to-end and processed FPS measurements were completed in Step 6.
 
 ### Live display and shutdown
 
@@ -431,8 +438,8 @@ execution environment, so a true live-camera and GUI-window session remains a
 documented hardware verification item. The machine-readable record is
 `metrics/step4_milestone4.json`.
 
-Milestone 5 timing instrumentation, backend work, and deployment remain out of
-scope at this gate.
+At this historical gate, timing, backend work, and deployment remained out of
+scope. Timing and backend work are now complete; deployment remains deferred.
 
 ## Milestone 5 — production hardening
 
@@ -511,6 +518,28 @@ warnings and still produced decodable 12-frame files; deterministic writer
 failure therefore uses an injected closed backend in tests and the manual
 failure harness. Codec availability remains platform-dependent.
 
-The machine-readable gate record is `metrics/step4_milestone5.json`. A full
-documentation consistency audit remains reserved for Milestone 7. Milestone 6
-has not started.
+The machine-readable gate record is `metrics/step4_milestone5.json`. Step 6 has
+now completed the formal benchmark and repository consistency audit without
+changing the established inference algorithms.
+
+## Step 6 — performance instrumentation
+
+`DetectorEngine.predict_frame_timed()` is an additive measurement API. It runs
+the same inference path as `predict_frame()` and returns the same `FrameResult`
+paired with `PredictionTiming`. Existing image, video, webcam, CLI, and backend
+callers continue to use `predict_frame()` unchanged.
+
+The benchmark separates Ultralytics preprocessing/model/postprocessing,
+project result conversion, annotation, encoding, JSON serialization, complete
+image/video pipelines, and local HTTP requests. Warm-up and steady-state are
+reported separately, with CPU and CUDA executed in isolated processes.
+
+Run it with:
+
+```powershell
+.venv\Scripts\python.exe -B scripts\benchmark.py `
+  --config configs\benchmark.yaml
+```
+
+See `docs/benchmark.md` and `metrics/step6_benchmark.json` for the complete
+methodology and results.
