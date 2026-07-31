@@ -1,9 +1,9 @@
 # PyroVision AI
 
 Real-time fire and smoke detection with YOLO11. The project is being built and
-verified one stage at a time. Dataset preparation, YOLO11s training, and
-held-out test evaluation (Steps 1–3) are complete. Step 4 local real-time
-inference is the next gated stage and has not yet been implemented.
+verified one stage at a time. Dataset preparation, YOLO11s training, held-out
+test evaluation, local inference engineering, and the local FastAPI backend
+(Steps 1–5) are complete. Deployment and frontend work have not started.
 
 ## Step 1 — dataset preparation
 
@@ -297,3 +297,47 @@ checkpoint mismatch, class-order mismatch, and invalid configuration were all
 verified. See `docs/inference.md` and `metrics/step4_milestone5.json` for this
 gate. The held-out test set was not used, and formal latency/FPS benchmarking
 has not started.
+
+## Step 5 — FastAPI backend
+
+Status: **complete locally; not deployed.**
+
+The backend is a thin adapter over the existing `pyrovision` package. FastAPI
+lifespan loads and verifies one `DetectorEngine`; image and video requests
+reuse the existing inference, annotation, output, and deterministic
+serialization pipelines. No training or Ultralytics result logic lives in the
+routes.
+
+Install and start from the repository root:
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements-backend.txt
+$env:PYTHONPATH = (Resolve-Path src)
+.venv\Scripts\python.exe -m pyrovision.api
+```
+
+Quick checks:
+
+```powershell
+curl.exe http://127.0.0.1:8000/health
+
+curl.exe -X POST http://127.0.0.1:8000/predict/image `
+  -F "file=@path\to\image.jpg;type=image/jpeg"
+
+curl.exe -X POST http://127.0.0.1:8000/predict/video `
+  -F "file=@path\to\video.mp4;type=video/mp4"
+```
+
+Swagger UI is available at `http://127.0.0.1:8000/docs`. Generated annotated
+media is returned as a backend-relative `/outputs/...` reference. Host, port,
+CORS origins, upload size, persistent output, temporary storage, and inference
+configuration paths are environment-configurable.
+
+All **60 tests** pass: the previous 50 inference/training/evaluation tests plus
+10 backend tests. The real local API gate loaded the verified checkpoint once
+on `cuda:0`; health, Swagger, development image/video inference, and annotated
+output retrieval passed. See `docs/api.md` and `metrics/step5_backend.json`.
+
+`POST /predict/webcam`, live streaming, deployment, frontend development,
+formal performance benchmarking, and the final documentation/release audit
+remain deferred.

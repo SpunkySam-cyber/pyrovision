@@ -289,3 +289,29 @@ Status: **Milestone 1 complete; stopped before Milestone 2**
 - Formal latency and FPS benchmarking did not start. Milestone 6 remains
   unauthorized and unstarted; the full documentation audit remains reserved
   for Milestone 7.
+
+### 2026-08-01 Step 5 — FastAPI backend
+
+- Added typed configuration for host, port, CORS, maximum upload bytes,
+  persistent output, temporary storage, and inference YAML.
+- Added lifespan-owned initialization. Startup verifies the checkpoint, class
+  order, and device once, then every request reuses the same `DetectorEngine`.
+- Added `GET /health`, `POST /predict/image`, and `POST /predict/video` with
+  Pydantic models and useful OpenAPI descriptions and examples.
+- Kept routes thin through `InferenceService`; image/video work reuses the
+  existing pipelines, annotations, collision-safe outputs, JSON/JSONL, and
+  engine prediction lock.
+- Added bounded uploads, extension/content-type validation, temporary-file
+  cleanup, output references, CORS, and structured request errors.
+- Reserved the `/predict/*` architecture for webcam without registering
+  `POST /predict/webcam`; it currently returns structured 404.
+- Added 10 CPU-only API tests. All 60 project tests, compile checks, and
+  dependency checks pass.
+- Started the real API with the epoch-54 checkpoint on `cuda:0`. Health and
+  Swagger returned 200. The development image returned one smoke and three
+  fire detections. The 12-frame video returned 12 ordered records and 18
+  detections (6 smoke, 12 fire); both outputs were retrievable.
+- Re-ran the existing CUDA CLI on a development negative image; its detection
+  list stayed empty. The held-out test set was not used.
+- Deployment, frontend work, live streaming, formal benchmarking, and the full
+  documentation/release audit remain deferred.

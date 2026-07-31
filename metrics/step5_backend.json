@@ -1,0 +1,54 @@
+{
+  "application_version": "0.1.0",
+  "automated_tests": {
+    "api_tests": 10,
+    "existing_tests": 50,
+    "passed": 60,
+    "status": "passed"
+  },
+  "checkpoint": {
+    "epoch": 54,
+    "sha256": "21812ec7917bda5ad004fc085ba6a9d8ee1b375c95db2efe754463fc430d28c3"
+  },
+  "date": "2026-08-01",
+  "deferred": {
+    "deployment": true,
+    "documentation_release_audit": true,
+    "formal_performance_benchmarking": true,
+    "frontend": true,
+    "live_streaming": true,
+    "webcam_endpoint": true
+  },
+  "endpoints": [
+    "GET /health",
+    "POST /predict/image",
+    "POST /predict/video"
+  ],
+  "manual_verification": {
+    "annotated_image_http_status": 200,
+    "annotated_video_http_status": 200,
+    "checkpoint_loads_per_application": 1,
+    "cli_regression": "passed",
+    "device": "cuda:0",
+    "health_http_status": 200,
+    "image_detections": {
+      "fire": 3,
+      "smoke": 1,
+      "total": 4
+    },
+    "swagger_http_status": 200,
+    "video": {
+      "detections": {
+        "fire": 12,
+        "smoke": 6,
+        "total": 18
+      },
+      "frames_processed": 12,
+      "structured_frame_records": 12
+    }
+  },
+  "routine_tests_require_gpu": false,
+  "status": "complete",
+  "step": 5,
+  "test_data": "training-derived development media only"
+}
