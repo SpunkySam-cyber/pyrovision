@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,13 +16,39 @@ from .errors import ConfigurationError
 
 SUPPORTED_SCHEMA_VERSION = 1
 _SHA256_PATTERN = re.compile(r"^[0-9a-fA-F]{64}$")
+_CODEC_PATTERN = re.compile(r"^[A-Za-z0-9]{4}$")
 
 
 def _validate_probability(name: str, value: float) -> None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ConfigurationError(f"{name} must be numeric")
-    if not 0.0 <= float(value) <= 1.0:
+    if not math.isfinite(float(value)) or not 0.0 <= float(value) <= 1.0:
         raise ConfigurationError(f"{name} must be between 0 and 1")
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Safe YAML loader that rejects silently overwritten duplicate keys."""
+
+
+def _construct_unique_mapping(
+    loader: _UniqueKeyLoader,
+    node: yaml.MappingNode,
+    deep: bool = False,
+) -> dict[Any, Any]:
+    loader.flatten_mapping(node)
+    mapping: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise ConfigurationError(f"Duplicate YAML key: {key!r}")
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
 
 
 @dataclass(frozen=True)
@@ -35,10 +62,12 @@ class CheckpointConfig:
     expected_classes: tuple[str, ...] = ("smoke", "fire")
 
     def __post_init__(self) -> None:
+        if not isinstance(self.path, (str, Path)):
+            raise ConfigurationError("checkpoint.path must be 'auto' or a file path")
         if self.path != "auto" and not str(self.path).strip():
             raise ConfigurationError("checkpoint.path must be 'auto' or a file path")
-        if not isinstance(self.metrics_file, Path):
-            raise ConfigurationError("checkpoint.metrics_file must be a path")
+        if not isinstance(self.metrics_file, Path) or self.metrics_file == Path("."):
+            raise ConfigurationError("checkpoint.metrics_file must be a non-empty file path")
         if not isinstance(self.verify_sha256, bool):
             raise ConfigurationError("checkpoint.verify_sha256 must be true or false")
         if self.sha256 is not None and (
@@ -46,7 +75,13 @@ class CheckpointConfig:
             or not _SHA256_PATTERN.fullmatch(self.sha256)
         ):
             raise ConfigurationError("checkpoint.sha256 must contain 64 hexadecimal characters")
-        normalized_classes = tuple(str(name).strip() for name in self.expected_classes)
+        if not isinstance(self.expected_classes, (list, tuple)) or not all(
+            isinstance(name, str) for name in self.expected_classes
+        ):
+            raise ConfigurationError(
+                "checkpoint.expected_classes must contain only class-name strings"
+            )
+        normalized_classes = tuple(name.strip() for name in self.expected_classes)
         if not normalized_classes or any(not name for name in normalized_classes):
             raise ConfigurationError("checkpoint.expected_classes must contain class names")
         if len(set(normalized_classes)) != len(normalized_classes):
@@ -81,11 +116,21 @@ class ModelConfig:
         if not isinstance(self.half, bool) and self.half != "auto":
             raise ConfigurationError("model.half must be true, false, or 'auto'")
 
+        if not isinstance(self.class_thresholds, Mapping):
+            raise ConfigurationError("model.class_thresholds must be a mapping")
         thresholds: dict[str, float] = {}
         for class_name, threshold in self.class_thresholds.items():
-            normalized_name = str(class_name).strip()
+            if not isinstance(class_name, str):
+                raise ConfigurationError(
+                    "model.class_thresholds keys must be class-name strings"
+                )
+            normalized_name = class_name.strip()
             if not normalized_name:
                 raise ConfigurationError("model.class_thresholds contains an empty class name")
+            if normalized_name in thresholds:
+                raise ConfigurationError(
+                    f"model.class_thresholds contains duplicate class {normalized_name!r}"
+                )
             _validate_probability(
                 f"model.class_thresholds.{normalized_name}", threshold
             )
@@ -107,6 +152,7 @@ class InputConfig:
         if self.source is not None:
             if not isinstance(self.source, str) or not self.source.strip():
                 raise ConfigurationError("input.source must be null or a non-empty string")
+            object.__setattr__(self, "source", self.source.strip())
         if isinstance(self.webcam_index, bool) or not isinstance(self.webcam_index, int):
             raise ConfigurationError("input.webcam_index must be an integer")
         if self.webcam_index < 0:
@@ -134,12 +180,12 @@ class OutputConfig:
         for name in ("save_media", "save_detections", "display"):
             if not isinstance(getattr(self, name), bool):
                 raise ConfigurationError(f"output.{name} must be true or false")
-        if (
-            not isinstance(self.video_codec, str)
-            or len(self.video_codec) != 4
-            or not self.video_codec.isascii()
+        if not isinstance(self.video_codec, str) or not _CODEC_PATTERN.fullmatch(
+            self.video_codec
         ):
-            raise ConfigurationError("output.video_codec must be a four-character ASCII code")
+            raise ConfigurationError(
+                "output.video_codec must contain four ASCII letters or digits"
+            )
         if (
             not isinstance(self.video_extension, str)
             or not self.video_extension.startswith(".")
@@ -164,6 +210,16 @@ class InferenceConfig:
     project_root: Path
 
     def __post_init__(self) -> None:
+        if not isinstance(self.checkpoint, CheckpointConfig):
+            raise ConfigurationError("checkpoint must be a CheckpointConfig")
+        if not isinstance(self.model, ModelConfig):
+            raise ConfigurationError("model must be a ModelConfig")
+        if not isinstance(self.input, InputConfig):
+            raise ConfigurationError("input must be an InputConfig")
+        if not isinstance(self.output, OutputConfig):
+            raise ConfigurationError("output must be an OutputConfig")
+        if not isinstance(self.project_root, Path):
+            raise ConfigurationError("project_root must be a path")
         if isinstance(self.schema_version, bool) or not isinstance(self.schema_version, int):
             raise ConfigurationError("schema_version must be an integer")
         if self.schema_version != SUPPORTED_SCHEMA_VERSION:
@@ -175,6 +231,8 @@ class InferenceConfig:
             r"auto|cpu|cuda(?::\d+)?", self.device.strip().lower()
         ):
             raise ConfigurationError("device must be auto, cpu, cuda, or cuda:N")
+        object.__setattr__(self, "device", self.device.strip().lower())
+        object.__setattr__(self, "project_root", self.project_root.resolve())
         unknown_thresholds = set(self.model.class_thresholds) - set(
             self.checkpoint.expected_classes
         )
@@ -210,6 +268,8 @@ def _reject_unknown(values: Mapping[str, Any], allowed: set[str], context: str) 
 
 
 def _project_path(value: str | Path, project_root: Path) -> Path:
+    if not isinstance(value, (str, Path)) or not str(value).strip():
+        raise ConfigurationError("Configured paths must be non-empty strings or paths")
     path = Path(value)
     return path.resolve() if path.is_absolute() else (project_root / path).resolve()
 
@@ -222,10 +282,17 @@ def load_inference_config(
     if not config_path.is_file():
         raise ConfigurationError(f"Inference configuration does not exist: {config_path}")
     try:
-        raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        raw = yaml.load(
+            config_path.read_text(encoding="utf-8"),
+            Loader=_UniqueKeyLoader,
+        )
+    except ConfigurationError:
+        raise
     except (OSError, yaml.YAMLError) as exc:
         raise ConfigurationError(f"Cannot load inference configuration: {exc}") from exc
     values = _mapping(raw, "configuration")
+    if "schema_version" not in values:
+        raise ConfigurationError("schema_version is required")
     _reject_unknown(
         values,
         {"schema_version", "checkpoint", "device", "model", "input", "output"},

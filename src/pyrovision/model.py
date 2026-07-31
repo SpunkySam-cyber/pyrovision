@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from threading import Lock
 from typing import Any
@@ -50,7 +51,8 @@ class DetectorEngine:
         self.checkpoint = checkpoint
         self.device = device
         self.class_names = validate_class_names(
-            model.names, config.checkpoint.expected_classes
+            getattr(model, "names", None),
+            config.checkpoint.expected_classes,
         )
         if config.model.half is True and not device.is_cuda:
             raise ConfigurationError("model.half=true requires a CUDA device")
@@ -70,7 +72,14 @@ class DetectorEngine:
         checkpoint = resolve_checkpoint(config.checkpoint, config.project_root)
         device = resolve_device(config.device, torch_module=torch_module)
         factory = model_factory or _default_model_factory
-        model = factory(str(checkpoint.path))
+        try:
+            model = factory(str(checkpoint.path))
+        except Exception as exc:
+            raise InferenceError(
+                f"Cannot load model checkpoint {checkpoint.path}: {exc}"
+            ) from exc
+        if model is None:
+            raise InferenceError("Model factory returned no model")
         return cls(model, config, checkpoint, device)
 
     @property
@@ -98,6 +107,8 @@ class DetectorEngine:
             raise InferenceError("Inference frame must be a NumPy array")
         if frame.ndim not in (2, 3) or frame.shape[0] <= 0 or frame.shape[1] <= 0:
             raise InferenceError(f"Unsupported frame shape: {frame.shape}")
+        if frame.ndim == 3 and frame.shape[2] not in (1, 3, 4):
+            raise InferenceError(f"Unsupported frame channel count: {frame.shape[2]}")
         height, width = int(frame.shape[0]), int(frame.shape[1])
         arguments = {
             "source": frame,
@@ -115,32 +126,76 @@ class DetectorEngine:
                 raw_results = self.model.predict(**arguments)
         except Exception as exc:
             raise InferenceError(f"Model inference failed: {exc}") from exc
-        if len(raw_results) != 1:
+        try:
+            result_count = len(raw_results)
+        except (TypeError, AttributeError) as exc:
+            raise InferenceError("Model returned a non-sequence result") from exc
+        if result_count != 1:
             raise InferenceError(
-                f"Expected one result for one frame, received {len(raw_results)}"
+                f"Expected one result for one frame, received {result_count}"
             )
 
         raw_boxes = getattr(raw_results[0], "boxes", None)
         detections: list[Detection] = []
         if raw_boxes is not None:
-            coordinates = _tensor_list(raw_boxes.xyxy)
-            confidences = _tensor_list(raw_boxes.conf)
-            classes = _tensor_list(raw_boxes.cls)
+            try:
+                coordinates = _tensor_list(raw_boxes.xyxy)
+                confidences = _tensor_list(raw_boxes.conf)
+                classes = _tensor_list(raw_boxes.cls)
+            except Exception as exc:
+                raise InferenceError(f"Cannot decode model result arrays: {exc}") from exc
             if not (len(coordinates) == len(confidences) == len(classes)):
                 raise InferenceError("Model result arrays have inconsistent lengths")
             for raw_bbox, raw_confidence, raw_class_id in zip(
                 coordinates, confidences, classes, strict=True
             ):
-                class_id = int(raw_class_id)
+                try:
+                    numeric_class_id = float(raw_class_id)
+                except (TypeError, ValueError, OverflowError) as exc:
+                    raise InferenceError(
+                        f"Model returned invalid class ID {raw_class_id!r}"
+                    ) from exc
+                if (
+                    isinstance(raw_class_id, bool)
+                    or not math.isfinite(numeric_class_id)
+                    or not numeric_class_id.is_integer()
+                ):
+                    raise InferenceError(
+                        f"Model returned invalid class ID {raw_class_id!r}"
+                    )
+                class_id = int(numeric_class_id)
                 if not 0 <= class_id < len(self.class_names):
                     raise InferenceError(f"Model returned unknown class ID {class_id}")
                 class_name = self.class_names[class_id]
-                confidence = float(raw_confidence)
+                try:
+                    confidence = float(raw_confidence)
+                except (TypeError, ValueError, OverflowError) as exc:
+                    raise InferenceError(
+                        f"Model returned invalid confidence {raw_confidence!r}"
+                    ) from exc
+                if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+                    raise InferenceError(
+                        f"Model returned invalid confidence {raw_confidence!r}"
+                    )
                 if confidence < self.threshold_for(class_name):
                     continue
                 if len(raw_bbox) != 4:
                     raise InferenceError("Model bounding boxes must contain four values")
-                x_min, y_min, x_max, y_max = (float(value) for value in raw_bbox)
+                try:
+                    x_min, y_min, x_max, y_max = (
+                        float(value) for value in raw_bbox
+                    )
+                except (TypeError, ValueError, OverflowError) as exc:
+                    raise InferenceError(
+                        f"Model returned invalid bounding box {raw_bbox!r}"
+                    ) from exc
+                if not all(
+                    math.isfinite(value)
+                    for value in (x_min, y_min, x_max, y_max)
+                ):
+                    raise InferenceError(
+                        f"Model returned invalid bounding box {raw_bbox!r}"
+                    )
                 x_min = min(max(x_min, 0.0), float(width))
                 y_min = min(max(y_min, 0.0), float(height))
                 x_max = min(max(x_max, 0.0), float(width))

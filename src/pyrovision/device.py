@@ -27,7 +27,7 @@ class ResolvedDevice:
 def _import_torch() -> Any | None:
     try:
         import torch
-    except ImportError:
+    except (ImportError, OSError):
         return None
     return torch
 
@@ -53,11 +53,16 @@ def resolve_device(requested: str, torch_module: Any | None = None) -> ResolvedD
         raise DeviceResolutionError(f"Unsupported device '{requested}'")
 
     torch_api = torch_module if torch_module is not None else _import_torch()
-    cuda_available = bool(
-        torch_api is not None
-        and getattr(torch_api, "cuda", None) is not None
-        and torch_api.cuda.is_available()
-    )
+    try:
+        cuda_available = bool(
+            torch_api is not None
+            and getattr(torch_api, "cuda", None) is not None
+            and torch_api.cuda.is_available()
+        )
+    except Exception as exc:
+        raise DeviceResolutionError(
+            f"Could not query CUDA availability: {exc}"
+        ) from exc
     if normalized == "auto" and not cuda_available:
         return ResolvedDevice(
             requested=normalized,
@@ -82,15 +87,24 @@ def resolve_device(requested: str, torch_module: Any | None = None) -> ResolvedD
         if index < 0:
             raise DeviceResolutionError(f"Invalid CUDA device '{requested}'")
 
-    device_count = int(torch_api.cuda.device_count())
+    try:
+        device_count = int(torch_api.cuda.device_count())
+    except Exception as exc:
+        raise DeviceResolutionError(f"Could not query CUDA devices: {exc}") from exc
     if index >= device_count:
         raise DeviceResolutionError(
             f"CUDA device index {index} is unavailable; detected {device_count} device(s)"
         )
+    try:
+        device_name = str(torch_api.cuda.get_device_name(index))
+    except Exception as exc:
+        raise DeviceResolutionError(
+            f"Could not query CUDA device {index}: {exc}"
+        ) from exc
     return ResolvedDevice(
         requested=normalized,
         value=f"cuda:{index}",
         is_cuda=True,
         index=index,
-        name=str(torch_api.cuda.get_device_name(index)),
+        name=device_name,
     )

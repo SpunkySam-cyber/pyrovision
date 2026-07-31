@@ -19,10 +19,14 @@ from pyrovision.checkpoints import (  # noqa: E402
 from pyrovision.config import (  # noqa: E402
     CheckpointConfig,
     ConfigurationError,
+    InputConfig,
+    ModelConfig,
+    OutputConfig,
     load_inference_config,
 )
 from pyrovision.device import resolve_device  # noqa: E402
 from pyrovision.errors import (  # noqa: E402
+    CheckpointError,
     CheckpointIntegrityError,
     ClassNameMismatchError,
     DeviceResolutionError,
@@ -82,6 +86,32 @@ class InferenceFoundationTest(unittest.TestCase):
             with self.assertRaises(ConfigurationError):
                 load_inference_config(bad_class, project_root=root)
 
+    def test_config_rejects_duplicates_missing_schema_and_invalid_types(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            duplicate = root / "duplicate.yaml"
+            duplicate.write_text(
+                "schema_version: 1\ndevice: cpu\ndevice: auto\n",
+                encoding="utf-8",
+            )
+            missing_schema = root / "missing_schema.yaml"
+            missing_schema.write_text("device: cpu\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ConfigurationError, "Duplicate YAML key"):
+                load_inference_config(duplicate, project_root=root)
+            with self.assertRaisesRegex(ConfigurationError, "schema_version is required"):
+                load_inference_config(missing_schema, project_root=root)
+            with self.assertRaises(ConfigurationError):
+                ModelConfig(confidence_threshold=float("nan"))
+            with self.assertRaises(ConfigurationError):
+                ModelConfig(class_thresholds={1: 0.5})
+            with self.assertRaises(ConfigurationError):
+                OutputConfig(video_codec="BAD!")
+            with self.assertRaises(ConfigurationError):
+                CheckpointConfig(expected_classes=("smoke", 1))
+
+        self.assertEqual(InputConfig(source="  image.jpg  ").source, "image.jpg")
+
     def test_auto_checkpoint_uses_metrics_and_verifies_hash(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -128,6 +158,25 @@ class InferenceFoundationTest(unittest.TestCase):
             with self.assertRaises(CheckpointIntegrityError):
                 resolve_checkpoint(config, root)
 
+    def test_auto_checkpoint_rejects_malformed_metrics_contract(self) -> None:
+        malformed_values = (
+            {"training": {"selected_checkpoint": {"sha256": "bad"}}},
+            {"training": {"selected_checkpoint": {"epoch": -1}}},
+            {"training": {"selected_checkpoint": {"path": 123}}},
+            {"experiment_id": [], "training": {}},
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            metrics = root / "metrics.json"
+            for value in malformed_values:
+                with self.subTest(value=value):
+                    metrics.write_text(json.dumps(value), encoding="utf-8")
+                    with self.assertRaises(CheckpointError):
+                        resolve_checkpoint(
+                            CheckpointConfig(path="auto", metrics_file=metrics),
+                            root,
+                        )
+
     def test_class_names_require_exact_order_and_spelling(self) -> None:
         self.assertEqual(
             validate_class_names({0: "smoke", 1: "fire"}, ("smoke", "fire")),
@@ -137,6 +186,12 @@ class InferenceFoundationTest(unittest.TestCase):
             validate_class_names({0: "fire", 1: "smoke"}, ("smoke", "fire"))
         with self.assertRaises(ClassNameMismatchError):
             validate_class_names({0: "smoke", 2: "fire"}, ("smoke", "fire"))
+        with self.assertRaises(ClassNameMismatchError):
+            validate_class_names({0.5: "smoke", 1: "fire"}, ("smoke", "fire"))
+        with self.assertRaises(ClassNameMismatchError):
+            validate_class_names({False: "smoke", True: "fire"}, ("smoke", "fire"))
+        with self.assertRaises(ClassNameMismatchError):
+            validate_class_names(["smoke", 1], ("smoke", "fire"))
 
     def test_device_resolution_supports_cpu_auto_and_cuda(self) -> None:
         no_cuda = SimpleNamespace(cuda=FakeCuda(False))
