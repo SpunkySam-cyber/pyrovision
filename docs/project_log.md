@@ -225,3 +225,34 @@ Status: **Milestone 1 complete; stopped before Milestone 2**
   is versioned in `metrics/step4_milestone3.json`.
 - Milestone gate: accepted. Webcam inference remains unimplemented pending
   Milestone 4 authorization.
+
+### 2026-07-31 Milestone 4 — webcam inference
+
+- Added an explicit webcam CLI mode with configuration-backed or direct index
+  selection; file and webcam modes are mutually exclusive.
+- Added `WebcamReader` with first-frame validation, monotonic session
+  timestamps, capture FPS reporting, a 30 FPS fallback, transient read retries,
+  resolution consistency checks, and idempotent release.
+- Reused `DetectorEngine`, project-owned frame/detection types, the annotation
+  renderer, validated video writer, flushed JSONL writer, and atomic summaries.
+- Added optional live display with `Q`/Escape shutdown and a clear headless
+  error; annotation work is shared with optional recording.
+- Added independent recording and detection-log controls, bounded
+  `--max-frames` verification, UTC-stamped run names, and explicit termination
+  reasons.
+- Added nine webcam tests covering CLI selection, capture validation, FPS
+  fallback, recording/log order, display shutdown, Ctrl+C, read failure, a
+  300-frame simulated session, and cleanup. All 34 project tests pass.
+- Probed physical webcam indices 0–3 through default, DirectShow, and Media
+  Foundation paths. No device was exposed to the execution environment.
+- Completed a real CUDA FP16 end-to-end gate by injecting the existing
+  training-derived development stream at the webcam capture boundary. All 12
+  640×360 frames were processed, written, decoded, and logged in order.
+- The verification summary matched 6 smoke and 12 fire detections. Visual
+  inspection of a combined frame showed one plausible smoke box and three
+  plausible fire boxes. The held-out test set was not used.
+- Local recordings and logs remain ignored. Machine-readable verification is
+  versioned in `metrics/step4_milestone4.json`.
+- Milestone gate: accepted with physical-camera availability documented as the
+  remaining hardware limitation. Performance instrumentation remains pending
+  Milestone 5 authorization.

@@ -151,8 +151,8 @@ and Git-ignored with the run directory.
 
 ## Step 4 — local real-time inference
 
-Status: **Milestone 3 video inference complete; webcam inference not yet
-implemented.**
+Status: **Milestone 4 webcam inference complete; performance instrumentation
+not yet implemented.**
 
 The reusable package now lives under `src/pyrovision/`. Its versioned inference
 configuration validates checkpoint selection, expected class names, global and
@@ -237,8 +237,33 @@ The default Windows codec/container is `mp4v`/`.mp4`. An explicit alternative
 can be requested with `--codec MJPG --video-extension .avi`. Writer creation is
 validated before processing.
 
-All 25 tests currently pass. Real CUDA video inference retained and decoded all
-12 development frames, wrote 12 ordered JSONL records, and produced a matching
-summary. Graceful callback and Ctrl+C interruption paths retain valid partial
-outputs. See `docs/inference.md` and `metrics/step4_milestone3.json` for the full
-record. Milestone 4 webcam work has not started.
+Milestone 4 adds an explicit webcam mode. The bare flag uses
+`input.webcam_index` from the inference configuration; an integer selects a
+different camera:
+
+```powershell
+# Use configured camera 0, show live annotations, record, and log detections
+.venv\Scripts\python.exe -B scripts\infer.py --webcam --display
+
+# Select camera 1 without recording; stop after 300 processed frames
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --webcam 1 `
+  --no-record `
+  --max-frames 300
+```
+
+Display is off by default. With it enabled, press `Q` or Escape for a clean
+normal shutdown; Ctrl+C produces an interruption-safe partial run. Recording
+and JSONL logging can be controlled independently with `--record`/
+`--no-record` and `--save-detections`/`--no-save-detections`. Every webcam run
+writes an atomic summary and uses a UTC-stamped name so separate sessions do
+not overwrite each other.
+
+All 34 tests currently pass. The real CUDA webcam pipeline gate retained and
+decoded all 12 frames from the training-derived development stream, wrote 12
+ordered JSONL records, and produced a matching summary. A physical webcam was
+not exposed to this execution environment on indices 0–3 through DirectShow or
+Media Foundation, so final live-camera/window verification remains a local
+hardware check. See `docs/inference.md` and
+`metrics/step4_milestone4.json` for the full record. Milestone 5 performance
+instrumentation has not started.

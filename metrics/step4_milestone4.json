@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "milestone": "Step 4 Milestone 4 - webcam inference",
+  "status": "complete",
+  "verified_on": "2026-07-31",
+  "checkpoint": {
+    "epoch": 54,
+    "sha256": "21812ec7917bda5ad004fc085ba6a9d8ee1b375c95db2efe754463fc430d28c3",
+    "classes": [
+      "smoke",
+      "fire"
+    ]
+  },
+  "features": {
+    "webcam_index_selection": true,
+    "configuration_default_index": true,
+    "optional_live_display": true,
+    "optional_recording": true,
+    "optional_jsonl_logging": true,
+    "monotonic_timestamps": true,
+    "graceful_keyboard_interrupt": true,
+    "programmatic_stop": true,
+    "capture_read_retries": 3,
+    "capture_fps_fallback": 30.0,
+    "unique_utc_run_names": true
+  },
+  "automated_tests": {
+    "total": 34,
+    "passed": 34,
+    "existing_before_milestone_4": 25,
+    "webcam_inference": 9,
+    "simulated_long_session_frames": 300
+  },
+  "physical_camera_probe": {
+    "available": false,
+    "indices_checked": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "backends_checked": [
+      "OpenCV default",
+      "DirectShow",
+      "Media Foundation"
+    ],
+    "result": "No camera device was exposed to the execution environment."
+  },
+  "cuda_pipeline_verification": {
+    "capture_boundary": "Injected OpenCV capture over the existing development stream",
+    "source": "media/dev/milestone3_train_sequence.mp4",
+    "generated_from_processed_split": "train",
+    "held_out_test_used": false,
+    "device": "cuda:0",
+    "precision_mode": "FP16",
+    "width": 640,
+    "height": 360,
+    "capture_fps": 4.0,
+    "codec": "mp4v",
+    "video_extension": ".mp4",
+    "run_status": "complete",
+    "termination_reason": "max_frames",
+    "frames_read": 12,
+    "frames_processed": 12,
+    "frames_written": 12,
+    "output_frames_declared": 12,
+    "output_frames_decoded": 12,
+    "jsonl_records": 12,
+    "frame_indices_ordered": true,
+    "detections_total": 18,
+    "detections_per_class": {
+      "smoke": 6,
+      "fire": 12
+    },
+    "visual_check": "One plausible smoke box and three plausible fire boxes on a combined frame"
+  },
+  "outputs": {
+    "annotated_video": "outputs/milestone4/simulated_camera/milestone4_simulated_camera_annotated.mp4",
+    "detections_jsonl": "outputs/milestone4/simulated_camera/milestone4_simulated_camera_detections.jsonl",
+    "run_summary": "outputs/milestone4/simulated_camera/milestone4_simulated_camera_summary.json",
+    "verification_frame": "outputs/milestone4/simulated_camera/verification_frame_009.jpg",
+    "git_ignored": true
+  },
+  "timing": {
+    "measured": false,
+    "reason": "Detailed pipeline timing and FPS instrumentation is reserved for Milestone 5."
+  },
+  "remaining_limitations": [
+    "A physical webcam and GUI display were not available in this execution environment.",
+    "A real long-duration hardware soak test remains to be run on the deployment workstation.",
+    "Recording FPS currently follows camera-reported FPS divided by frame stride; observed processed FPS will be instrumented in Milestone 5."
+  ]
+}

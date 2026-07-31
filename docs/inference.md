@@ -319,6 +319,117 @@ machine-readable result is `metrics/step4_milestone3.json`.
 - Stop callback and Ctrl+C partial-output handling: passed
 - Real annotated output decode: 12/12 frames
 
-Milestone 4 will add webcam index parsing, optional live display, camera failure
-handling, and long-running resource validation. Webcam, performance
-instrumentation, backend work, and deployment remain out of scope at this gate.
+## Milestone 4 — webcam inference
+
+Webcam inference is an explicit CLI mode, so a missing file source never opens
+a camera unexpectedly. The bare flag uses `input.webcam_index` from
+`configs/inference.yaml`; passing an integer overrides it:
+
+```powershell
+# Camera index 0 from configuration, with a live window
+.venv\Scripts\python.exe -B scripts\infer.py --webcam --display
+
+# Explicit camera index, bounded headless verification run
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --webcam 1 `
+  --no-display `
+  --max-frames 300
+```
+
+`--source` and `--webcam` are mutually exclusive. Invalid or unavailable camera
+indices fail with a structured CLI error that identifies camera permissions and
+device contention as likely causes. An opened camera must produce a valid frame
+within three read attempts. The first real frame establishes capture dimensions;
+subsequent resolution changes fail cleanly instead of corrupting the output.
+
+### Capture and timestamp contract
+
+`WebcamReader` owns the OpenCV capture and exposes the same `SourceFrame`
+boundary used by video inference. It provides:
+
+- Original zero-based capture indices, including skipped frames
+- Monotonic timestamps relative to capture start
+- Dimensions validated against the first captured frame
+- Camera-reported FPS, or an explicit 30 FPS fallback when unavailable
+- Idempotent capture release through a context manager
+
+Frame skipping uses the existing `input.frame_skip` setting. Recording FPS is
+divided by the processing stride, matching the video policy. Accurate
+end-to-end and processed FPS measurement remains reserved for Milestone 5.
+
+### Live display and shutdown
+
+Live display is opt-in through `--display` or `output.display: true`. Annotation
+is computed once and shared between display and recording. Press `Q`, `q`, or
+Escape to finish normally. Ctrl+C or the reusable programmatic stop callback
+marks the run interrupted. In every processing exit path, the pipeline closes:
+
+1. The display window
+2. The flushed JSONL writer
+3. The annotated video writer
+4. The webcam capture
+
+A display initialization/runtime failure explains how to use `--no-display`
+for headless environments. CLI interruptions return exit code 130.
+
+### Optional recording and logs
+
+Recording and structured detections are independent:
+
+```powershell
+# Display and JSONL only
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --webcam 0 `
+  --display `
+  --no-record
+
+# Display and recording only
+.venv\Scripts\python.exe -B scripts\infer.py `
+  --webcam 0 `
+  --display `
+  --no-save-detections
+```
+
+The defaults record and log without displaying. Each session receives a
+UTC-stamped stem such as `webcam_0_20260731T174543_423615Z` and can produce:
+
+```text
+outputs/inference/
+  <run>_annotated.mp4
+  <run>_detections.jsonl
+  <run>_summary.json
+```
+
+The JSONL frame schema is the same deterministic project-owned schema used for
+videos. The atomic summary adds camera index, reported/fallback FPS source,
+display/recording flags, termination reason, frame counts, timestamp range,
+checkpoint/device identity, and per-class totals.
+
+### Milestone 4 verification
+
+- Existing tests before Milestone 4: 25 passed
+- New webcam tests: 9 passed
+- Total: 34 passed
+- Index/config CLI selection and source exclusivity: passed
+- Invalid, unavailable, and non-reading cameras: passed
+- Display quit-key handling and display cleanup: passed
+- Recording, ordered JSONL, and atomic summary: passed
+- Ctrl+C and capture-failure partial-output handling: passed
+- Simulated 300-frame long session with stable counts/cleanup: passed
+- Real checkpoint on CUDA through the webcam capture boundary: passed
+
+The real CUDA gate injected the existing 640×360, 4 FPS, 12-frame
+training-derived development stream at the capture factory boundary. It used
+the verified epoch-54 checkpoint on `cuda:0`, processed/wrote/decoded all 12
+frames, wrote 12 ordered JSONL records, and counted 6 smoke plus 12 fire
+detections. Visual inspection of a combined frame showed one plausible smoke
+box and three plausible fire boxes. The held-out test set was not used.
+
+Physical webcam probing was attempted on indices 0–3 with the OpenCV default,
+DirectShow, and Media Foundation paths. No camera device was exposed to this
+execution environment, so a true live-camera and GUI-window session remains a
+documented hardware verification item. The machine-readable record is
+`metrics/step4_milestone4.json`.
+
+Milestone 5 timing instrumentation, backend work, and deployment remain out of
+scope at this gate.
