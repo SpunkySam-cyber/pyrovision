@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from threading import Lock
+from time import perf_counter
 from typing import Any
 
 import numpy as np
@@ -13,6 +14,7 @@ from .checkpoints import ResolvedCheckpoint, resolve_checkpoint, validate_class_
 from .config import InferenceConfig
 from .device import ResolvedDevice, resolve_device
 from .errors import ConfigurationError, InferenceError
+from .timing import PredictionTiming, TimedFrameResult
 from .types import BoundingBox, Detection, FrameResult
 
 
@@ -34,6 +36,18 @@ def _tensor_list(value: Any) -> list[Any]:
             converted = method()
     tolist = getattr(converted, "tolist", None)
     return tolist() if callable(tolist) else list(converted)
+
+
+def _speed_ms(raw_result: Any, key: str) -> float | None:
+    """Read optional Ultralytics per-image timing without trusting its shape."""
+    speed = getattr(raw_result, "speed", None)
+    if not isinstance(speed, Mapping):
+        return None
+    value = speed.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    normalized = float(value)
+    return normalized if math.isfinite(normalized) and normalized >= 0.0 else None
 
 
 class DetectorEngine:
@@ -103,6 +117,23 @@ class DetectorEngine:
         timestamp_ms: float | None = 0.0,
     ) -> FrameResult:
         """Run one BGR frame and return deterministic framework-neutral detections."""
+        return self.predict_frame_timed(
+            frame,
+            source=source,
+            frame_index=frame_index,
+            timestamp_ms=timestamp_ms,
+        ).result
+
+    def predict_frame_timed(
+        self,
+        frame: np.ndarray,
+        *,
+        source: str,
+        frame_index: int = 0,
+        timestamp_ms: float | None = 0.0,
+    ) -> TimedFrameResult:
+        """Run the unchanged frame path and also return benchmark timing data."""
+        engine_started = perf_counter()
         if not isinstance(frame, np.ndarray):
             raise InferenceError("Inference frame must be a NumPy array")
         if frame.ndim not in (2, 3) or frame.shape[0] <= 0 or frame.shape[1] <= 0:
@@ -121,11 +152,14 @@ class DetectorEngine:
             "save": False,
             "verbose": False,
         }
+        model_started = perf_counter()
         try:
             with self._predict_lock:
                 raw_results = self.model.predict(**arguments)
         except Exception as exc:
             raise InferenceError(f"Model inference failed: {exc}") from exc
+        model_call_ms = (perf_counter() - model_started) * 1000.0
+        project_postprocess_started = perf_counter()
         try:
             result_count = len(raw_results)
         except (TypeError, AttributeError) as exc:
@@ -135,7 +169,8 @@ class DetectorEngine:
                 f"Expected one result for one frame, received {result_count}"
             )
 
-        raw_boxes = getattr(raw_results[0], "boxes", None)
+        raw_result = raw_results[0]
+        raw_boxes = getattr(raw_result, "boxes", None)
         detections: list[Detection] = []
         if raw_boxes is not None:
             try:
@@ -221,7 +256,7 @@ class DetectorEngine:
                 item.bbox.y_max,
             )
         )
-        return FrameResult(
+        frame_result = FrameResult(
             source=source,
             frame_index=frame_index,
             timestamp_ms=timestamp_ms,
@@ -229,3 +264,15 @@ class DetectorEngine:
             height=height,
             detections=detections,
         )
+        project_postprocessing_ms = (
+            perf_counter() - project_postprocess_started
+        ) * 1000.0
+        timing = PredictionTiming(
+            preprocessing_ms=_speed_ms(raw_result, "preprocess"),
+            inference_ms=_speed_ms(raw_result, "inference"),
+            framework_postprocessing_ms=_speed_ms(raw_result, "postprocess"),
+            project_postprocessing_ms=project_postprocessing_ms,
+            model_call_ms=model_call_ms,
+            engine_total_ms=(perf_counter() - engine_started) * 1000.0,
+        )
+        return TimedFrameResult(result=frame_result, timing=timing)

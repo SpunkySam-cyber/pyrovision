@@ -2,6 +2,7 @@
 
 from .config import InferenceConfig, load_inference_config
 from .model import DetectorEngine
+from .timing import PredictionTiming, TimedFrameResult
 from .types import BoundingBox, Detection, FrameResult
 
 __all__ = [
@@ -10,6 +11,8 @@ __all__ = [
     "DetectorEngine",
     "FrameResult",
     "InferenceConfig",
+    "PredictionTiming",
+    "TimedFrameResult",
     "load_inference_config",
 ]
 

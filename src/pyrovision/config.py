@@ -12,6 +12,7 @@ from typing import Any, Mapping
 import yaml
 
 from .errors import ConfigurationError
+from .yaml_utils import load_unique_yaml
 
 
 SUPPORTED_SCHEMA_VERSION = 1
@@ -24,31 +25,6 @@ def _validate_probability(name: str, value: float) -> None:
         raise ConfigurationError(f"{name} must be numeric")
     if not math.isfinite(float(value)) or not 0.0 <= float(value) <= 1.0:
         raise ConfigurationError(f"{name} must be between 0 and 1")
-
-
-class _UniqueKeyLoader(yaml.SafeLoader):
-    """Safe YAML loader that rejects silently overwritten duplicate keys."""
-
-
-def _construct_unique_mapping(
-    loader: _UniqueKeyLoader,
-    node: yaml.MappingNode,
-    deep: bool = False,
-) -> dict[Any, Any]:
-    loader.flatten_mapping(node)
-    mapping: dict[Any, Any] = {}
-    for key_node, value_node in node.value:
-        key = loader.construct_object(key_node, deep=deep)
-        if key in mapping:
-            raise ConfigurationError(f"Duplicate YAML key: {key!r}")
-        mapping[key] = loader.construct_object(value_node, deep=deep)
-    return mapping
-
-
-_UniqueKeyLoader.add_constructor(
-    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
-    _construct_unique_mapping,
-)
 
 
 @dataclass(frozen=True)
@@ -282,10 +258,7 @@ def load_inference_config(
     if not config_path.is_file():
         raise ConfigurationError(f"Inference configuration does not exist: {config_path}")
     try:
-        raw = yaml.load(
-            config_path.read_text(encoding="utf-8"),
-            Loader=_UniqueKeyLoader,
-        )
+        raw = load_unique_yaml(config_path.read_text(encoding="utf-8"))
     except ConfigurationError:
         raise
     except (OSError, yaml.YAMLError) as exc:

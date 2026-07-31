@@ -1,0 +1,17 @@
+schema_version: 1
+
+inference_config: configs/inference.yaml
+image: media/dev/milestone5_images/04_combined.jpg
+video: media/dev/milestone3_train_sequence.mp4
+output_directory: outputs/step6-benchmark
+report_path: metrics/step6_benchmark.json
+
+devices:
+  - cpu
+  - cuda:0
+
+warmup_iterations: 3
+image_iterations: 10
+video_runs: 3
+api_image_iterations: 3
+api_video_runs: 1
